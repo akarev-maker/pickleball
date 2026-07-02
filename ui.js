@@ -51,8 +51,23 @@ export function hideBanner() {
 export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {}) {
   hideOverlays();
   menuEl.classList.remove('hidden');
-  document.getElementById('mode-quick').onclick = () => {
+
+  // Quick Play, Doubles, and Skinny share the difficulty row; the chosen
+  // variant and the Best-of-3 toggle ride along with the difficulty pick.
+  let variant = 'singles';
+  let bestOf3 = false;
+  const reveal = (v) => {
+    variant = v;
     difficultyRow.classList.remove('hidden');
+  };
+  document.getElementById('mode-quick').onclick = () => reveal('singles');
+  document.getElementById('mode-doubles').onclick = () => reveal('doubles');
+  document.getElementById('mode-skinny').onclick = () => reveal('skinny');
+  const best3Btn = document.getElementById('best3');
+  best3Btn.onclick = () => {
+    bestOf3 = !bestOf3;
+    best3Btn.textContent = `Best of 3: ${bestOf3 ? 'on' : 'off'}`;
+    best3Btn.classList.toggle('on', bestOf3);
   };
   document.getElementById('mode-tournament').onclick = () => {
     menuEl.classList.add('hidden');
@@ -68,7 +83,7 @@ export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {
   for (const btn of menuEl.querySelectorAll('button[data-difficulty]')) {
     btn.onclick = () => {
       menuEl.classList.add('hidden');
-      onQuick(btn.dataset.difficulty);
+      onQuick(btn.dataset.difficulty, { variant, bestOf3 });
     };
   }
 }

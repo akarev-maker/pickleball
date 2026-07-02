@@ -5,7 +5,7 @@ import {
   PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen, LINE_TOL,
 } from './rules.js';
 import {
-  setupCanvas, drawCourt, COURT_W, COURT_L, NET_Y, KITCHEN_TOP, CENTER_X,
+  setupCanvas, drawCourt, COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X,
 } from './court.js';
 import { Ball } from './ball.js';
 import { Player } from './player.js';
@@ -54,14 +54,19 @@ window.addEventListener('mouseup', () => { mouseHeld = false; });
 
 const ball = new Ball();
 const player = new Player();
-const cpu = new Cpu();
+const cpu = new Cpu('top');
+const opp2 = new Cpu('top'); // second opponent in doubles
+const partner = new Cpu('bottom'); // your doubles partner
 const fx = new Fx();
 const recorder = new ReplayRecorder();
 
 let state = 'menu';
 let score = new Score();
 let rally = null;
-let mode = 'quick'; // 'quick' | 'tournament'
+let mode = 'quick'; // 'quick' | 'tournament' | 'daily'
+let variant = 'singles'; // 'singles' | 'doubles' | 'skinny'
+let bestOf3 = false;
+let matchGames = { [PLAYER]: 0, [CPU]: 0 };
 let opponent = null; // roster profile in tournament mode
 let introTimer = 0;
 let pendingResult = null;
@@ -102,12 +107,33 @@ function clearModifiers() {
   ball.gravityScale = 1;
 }
 
-function startGame(difficulty) {
+let lastOpts = {};
+
+function setVariant(v) {
+  variant = v;
+  cpu.homeX = v === 'skinny' ? CENTER_X / 2 : (v === 'doubles' ? CENTER_X - 5 : CENTER_X);
+  cpu.coverHalf = v === 'doubles' ? 'left' : null;
+  opp2.homeX = CENTER_X + 5;
+  opp2.coverHalf = 'right';
+}
+
+function startGame(difficulty, opts = {}) {
   mode = 'quick';
   opponent = null;
   lastDifficulty = difficulty;
+  lastOpts = opts;
+  bestOf3 = !!opts.bestOf3;
+  matchGames = { [PLAYER]: 0, [CPU]: 0 };
   clearModifiers();
+  setVariant(opts.variant || 'singles');
   cpu.setDifficulty(difficulty);
+  if (variant === 'doubles') {
+    opp2.setDifficulty(difficulty);
+    // Your partner is competent but a step slower than you.
+    partner.setProfile({ ...cpu.difficulty, speed: cpu.difficulty.speed - 1 });
+    opp2.reset();
+    partner.reset();
+  }
   score = new Score();
   ui.updateScore(score, score.servingSide);
   startServe();
@@ -115,6 +141,8 @@ function startGame(difficulty) {
 
 function startDaily() {
   mode = 'daily';
+  setVariant('singles');
+  bestOf3 = false;
   daily = dailyChallenge();
   opponent = ROSTER[daily.opponentIndex];
   cpu.setProfile(opponent);
@@ -143,7 +171,7 @@ function togglePause() {
         ui.hidePause();
         if (mode === 'tournament') startTournamentMatch();
         else if (mode === 'daily') startDaily();
-        else startGame(lastDifficulty);
+        else startGame(lastDifficulty, lastOpts);
       },
       onQuit: () => {
         ui.hidePause();
@@ -172,6 +200,8 @@ function openLadder() {
 
 function startTournamentMatch() {
   mode = 'tournament';
+  setVariant('singles');
+  bestOf3 = false;
   clearModifiers();
   opponent = ROSTER[loadRung()];
   cpu.setProfile(opponent);
@@ -221,23 +251,29 @@ function startServe() {
   const server = score.servingSide;
   const evenScore = score.get(server) % 2 === 0;
   // Servers serve from their right on an even score. The bottom player's
-  // right is +x; the top player's right is -x.
+  // right is +x; the top player's right is -x. Skinny plays the left
+  // half-court only, so everyone serves straight from mid-half.
   if (server === PLAYER) {
-    serveX = evenScore ? CENTER_X + 5 : CENTER_X - 5;
+    serveX = variant === 'skinny' ? CENTER_X / 2 : (evenScore ? CENTER_X + 5 : CENTER_X - 5);
     player.x = serveX;
     player.y = COURT_L + 1.5;
     cpu.reset();
-    cpu.x = COURT_W - serveX; // receiver covers the diagonal box
+    if (variant !== 'doubles') cpu.x = variant === 'skinny' ? serveX : COURT_W - serveX;
     ui.showBanner('Your serve — press SPACE (hold ←/→ to aim)', 0);
   } else {
-    serveX = evenScore ? CENTER_X - 5 : CENTER_X + 5;
+    serveX = variant === 'skinny' ? CENTER_X / 2 : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
     cpu.reset();
     cpu.x = serveX;
     cpu.y = -1.5;
-    player.x = COURT_W - serveX;
+    player.x = variant === 'skinny' ? serveX : COURT_W - serveX;
     player.y = COURT_L - 2;
     serveTimer = CPU_SERVE_DELAY;
-    ui.showBanner('CPU serves…', 0);
+    ui.showBanner(`${opponentName()} serves…`, 0);
+  }
+  if (variant === 'doubles') {
+    opp2.reset();
+    partner.reset();
+    partner.x = player.x < CENTER_X ? CENTER_X + 5 : CENTER_X - 5;
   }
   const sy = server === PLAYER ? COURT_L + 1.5 : -1.5;
   ball.placeAt(serveX, sy, 2.5);
@@ -252,23 +288,26 @@ function serve() {
   sfx.paddle(0.4);
   ui.hideBanner();
 
+  // Skinny serves go straight up the half-court; normal serves go diagonal.
+  const baseTx = variant === 'skinny' ? serveX : COURT_W - serveX;
+  const maxTx = variant === 'skinny' ? CENTER_X - 1 : COURT_W - 1;
   if (server === PLAYER) {
     let tx;
     let ty;
     if (aim.active) {
-      tx = clamp(aim.x + rand(-1, 1), 1, COURT_W - 1);
+      tx = clamp(aim.x + rand(-1, 1), 1, maxTx);
       ty = clamp(aim.y + rand(-1, 1), 1, KITCHEN_TOP - 0.5);
     } else {
       let steer = 0;
       if (keys.has('ArrowLeft') || keys.has('KeyA')) steer -= 1;
       if (keys.has('ArrowRight') || keys.has('KeyD')) steer += 1;
-      tx = clamp(COURT_W - serveX + steer * 3 + rand(-1.2, 1.2), 1, COURT_W - 1);
+      tx = clamp(baseTx + steer * 3 + rand(-1.2, 1.2), 1, maxTx);
       ty = rand(6, 12);
     }
     ball.launchTo(tx, ty, rand(7.5, 9));
   } else {
     const err = cpu.difficulty.aimError;
-    const tx = clamp(COURT_W - serveX + rand(-err, err), 1, COURT_W - 1);
+    const tx = clamp(baseTx + rand(-err, err), 1, maxTx);
     ball.launchTo(tx, clamp(rand(33, 41) + rand(-err, err), 30, COURT_L + 1), rand(7.5, 9));
   }
   prevBallY = ball.y;
@@ -373,54 +412,81 @@ function mustLetBounce() {
 function ballIsPlayable() {
   if (rally.bouncedSinceLastHit) return true;
   const land = ball.predictLanding();
-  return land.x >= -0.2 && land.x <= COURT_W + 0.2
+  const maxX = variant === 'skinny' ? CENTER_X + 0.2 : COURT_W + 0.2;
+  return land.x >= -0.2 && land.x <= maxX
     && land.y >= -0.2 && land.y <= COURT_L + 0.2;
+}
+
+// A bot (opponent or partner) swings for its team. Returns undefined when it
+// doesn't attempt the ball, null when it hits cleanly, or a rally result.
+function botHit(bot, teamSide, target) {
+  if (!bot.canReach(ball)) return undefined;
+  const volley = !rally.bouncedSinceLastHit;
+  // Competent bots know better than to volley from the kitchen.
+  if (volley && hitterInKitchen(bot) && bot.difficulty.aimError < 4) return undefined;
+  const result = rally.recordHit(teamSide, { volley, inKitchen: hitterInKitchen(bot) });
+  if (result) return result;
+  const shot = bot.chooseShot(ball, target);
+  if (variant === 'skinny') shot.tx = Math.min(shot.tx, CENTER_X - 0.7);
+  applyStress(shot, bot, bot.difficulty.aimError * 0.5);
+  sfx.paddle(0.25);
+  ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
+  netRebound = false;
+  return null;
 }
 
 function handleHits() {
   const playable = ballIsPlayable();
-  // Player hits balls coming toward them (vy > 0), CPU the reverse; nobody
-  // may hit their own shot twice (e.g. after it rebounds off the net).
-  if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER
-      && player.canReach(ball) && !mustLetBounce()) {
-    const volley = !rally.bouncedSinceLastHit;
-    const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
-    if (result) return result;
-    const shot = playerShot();
-    applyStress(shot, player, 1.2 + 0.6 * shot.power);
-    if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
-    if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
-    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
-    netRebound = false;
-    return null;
+  // Player hits balls coming toward them (vy > 0), CPUs the reverse; no
+  // team may hit its own shot twice (e.g. after it rebounds off the net).
+  if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER && !mustLetBounce()) {
+    if (player.canReach(ball)) {
+      const volley = !rally.bouncedSinceLastHit;
+      const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
+      if (result) return result;
+      const shot = playerShot();
+      applyStress(shot, player, 1.2 + 0.6 * shot.power);
+      if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
+      if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
+      ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
+      netRebound = false;
+      return null;
+    }
+    if (variant === 'doubles') {
+      const r = botHit(partner, PLAYER, cpu);
+      if (r !== undefined) return r;
+    }
   }
 
-  if (ball.vy < 0 && playable && rally.lastHitter !== CPU
-      && cpu.canReach(ball) && !mustLetBounce()) {
-    const volley = !rally.bouncedSinceLastHit;
-    // Medium and hard CPUs know better than to volley from the kitchen.
-    if (volley && hitterInKitchen(cpu) && cpu.difficulty.aimError < 4) return null;
-    const result = rally.recordHit(CPU, { volley, inKitchen: hitterInKitchen(cpu) });
-    if (result) return result;
-    const shot = cpu.chooseShot(ball, player);
-    applyStress(shot, cpu, cpu.difficulty.aimError * 0.5);
-    sfx.paddle(0.25);
-    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
-    netRebound = false;
-    return null;
+  if (ball.vy < 0 && playable && rally.lastHitter !== CPU && !mustLetBounce()) {
+    for (const bot of variant === 'doubles' ? [cpu, opp2] : [cpu]) {
+      const r = botHit(bot, CPU, player);
+      if (r !== undefined) return r;
+    }
   }
 
   return null;
 }
 
+// Skinny singles: straight serves into the left half-court, past the kitchen.
+function skinnyServeValid(server, x, y) {
+  if (x <= -LINE_TOL || x >= CENTER_X + LINE_TOL) return false;
+  if (server === PLAYER) return y > -LINE_TOL && y < KITCHEN_TOP;
+  return y > KITCHEN_BOTTOM && y < COURT_L + LINE_TOL;
+}
+
 function handleBounce() {
   const isFirstBounceOfServe = rally.hitCount === 1 && !rally.bouncedSinceLastHit;
-  if (isFirstBounceOfServe && !isValidServeLanding(rally.server, serveX, ball.x, ball.y)) {
+  const serveOk = variant === 'skinny'
+    ? skinnyServeValid(rally.server, ball.x, ball.y)
+    : isValidServeLanding(rally.server, serveX, ball.x, ball.y);
+  if (isFirstBounceOfServe && !serveOk) {
     return { winner: other(rally.server), reason: 'Service fault!' };
   }
   const isFirstBounceSinceHit = !rally.bouncedSinceLastHit;
-  // A ball touching the line is in.
-  const out = ball.x < -LINE_TOL || ball.x > COURT_W + LINE_TOL
+  // A ball touching the line is in; in skinny the right half is out.
+  const maxX = variant === 'skinny' ? CENTER_X + LINE_TOL : COURT_W + LINE_TOL;
+  const out = ball.x < -LINE_TOL || ball.x > maxX
     || ball.y < -LINE_TOL || ball.y > COURT_L + LINE_TOL;
   if (isFirstBounceSinceHit && out) {
     return rally.recordOut(rally.lastHitter);
@@ -462,7 +528,15 @@ function handleNetCrossing() {
 
 function updateRally(dt) {
   player.update(dt, keys);
-  cpu.update(dt, ball, ballIsPlayable());
+  const playable = ballIsPlayable();
+  cpu.update(dt, ball, playable);
+  if (variant === 'doubles') {
+    // Your partner slides to whichever half you're not covering.
+    partner.coverHalf = player.x < CENTER_X ? 'right' : 'left';
+    partner.homeX = player.x < CENTER_X ? CENTER_X + 5 : CENTER_X - 5;
+    partner.update(dt, ball, playable);
+    opp2.update(dt, ball, playable);
+  }
 
   let result = handleHits();
 
@@ -487,6 +561,7 @@ function updateRally(dt) {
   recorder.record({
     bx: ball.x, by: ball.y, bz: ball.z,
     px: player.x, py: player.y, cx: cpu.x, cy: cpu.y,
+    p2x: partner.x, p2y: partner.y, o2x: opp2.x, o2y: opp2.y,
   });
 
   if (result) {
@@ -556,8 +631,18 @@ function draw() {
   ctx.save();
   ctx.translate(ox, oy);
   drawCourt(ctx, view);
+  if (variant === 'skinny' && state !== 'menu') {
+    // The right half-court is out of play.
+    const tl = view.toPx(CENTER_X, 0);
+    ctx.fillStyle = 'rgba(10, 20, 15, 0.35)';
+    ctx.fillRect(tl.px, tl.py, (COURT_W - CENTER_X) * view.scale, COURT_L * view.scale);
+  }
   fx.drawUnder(ctx, view);
   cpu.draw(ctx, view);
+  if (variant === 'doubles' && state !== 'menu') {
+    opp2.draw(ctx, view);
+    partner.draw(ctx, view);
+  }
   player.draw(ctx, view);
   if (state !== 'menu') ball.draw(ctx, view);
   fx.drawOver(ctx, view);
@@ -595,6 +680,10 @@ function frame(now) {
     ball.inFlight = false; // suppress the landing marker during playback
     player.x = f.px; player.y = f.py;
     cpu.x = f.cx; cpu.y = f.cy;
+    if (variant === 'doubles') {
+      partner.x = f.p2x; partner.y = f.p2y;
+      opp2.x = f.o2x; opp2.y = f.o2y;
+    }
     if (replaySkip || replayIdx >= replayClip.length) {
       endRally(pendingResult);
     }
@@ -604,11 +693,23 @@ function frame(now) {
     if (bannerTimer <= 0) {
       ui.hideBanner();
       const winner = score.winner();
-      if (winner) {
+      if (!winner) {
+        startServe();
+      } else if (bestOf3 && ++matchGames[winner] < 2) {
+        // Game won, match still live: record it and play the next game.
+        recordGame({ won: winner === PLAYER, shutout: score.get(other(winner)) === 0, champion: false });
+        const g = matchGames[PLAYER] + matchGames[CPU];
+        ui.showBanner(
+          `${winner === PLAYER ? 'You take' : `${opponentName()} takes`} game ${g}! ${matchGames[PLAYER]}–${matchGames[CPU]}`,
+          0,
+        );
+        score = new Score();
+        ui.updateScore(score, score.servingSide, opponentName());
+        introTimer = 2.5;
+        state = 'intro';
+      } else {
         state = 'game-over';
         handleMatchOver(winner);
-      } else {
-        startServe();
       }
     }
   }

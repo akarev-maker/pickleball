@@ -32,7 +32,7 @@ export function installDom() {
   const elements = {};
   const ids = [
     'game', 'score', 'banner', 'menu', 'difficulty-row',
-    'mode-quick', 'mode-tournament',
+    'mode-quick', 'mode-tournament', 'mode-doubles', 'mode-skinny', 'best3',
     'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',
     'champion', 'champion-restart',
     'pause', 'pause-resume', 'pause-restart', 'pause-quit',

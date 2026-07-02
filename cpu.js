@@ -7,12 +7,21 @@ import { drawFigure, REACH, MAX_HIT_HEIGHT } from './player.js';
 import { QUICK_PROFILES } from './ladder.js';
 
 export class Cpu {
-  constructor() {
+  // side 'top' plays toward the player; side 'bottom' is a doubles partner.
+  // All tuning lives in the top-side frame; m() mirrors y for bottom-siders.
+  constructor(side = 'top') {
+    this.side = side;
+    this.homeX = CENTER_X; // narrowed in skinny/doubles modes
+    this.coverHalf = null; // 'left' | 'right' | null — doubles half coverage
     this.x = CENTER_X;
-    this.y = 4;
+    this.y = this.m(4);
     this.setDifficulty('medium');
     this.reactionLeft = 0;
     this.trackedBall = null;
+  }
+
+  m(y) {
+    return this.side === 'top' ? y : COURT_L - y;
   }
 
   setDifficulty(name) {
@@ -26,18 +35,19 @@ export class Cpu {
   }
 
   reset() {
-    this.x = CENTER_X;
-    this.y = 4;
+    this.x = this.homeX;
+    this.y = this.m(4);
     this.reactionLeft = 0;
     this.trackedBall = null;
     this.speedNow = 0;
   }
 
   update(dt, ball, playable = true) {
-    let targetX = CENTER_X;
-    let targetY = 6; // home position between baseline and kitchen
+    let targetX = this.homeX;
+    let targetY = this.m(6); // home position between baseline and kitchen
 
-    const comingMyWay = ball.inFlight && ball.vy < 0 && playable;
+    const toward = this.side === 'top' ? ball.vy < 0 : ball.vy > 0;
+    const comingMyWay = ball.inFlight && toward && playable;
     if (comingMyWay) {
       if (this.trackedBall !== ball.launchId) {
         this.trackedBall = ball.launchId;
@@ -46,8 +56,14 @@ export class Cpu {
       this.reactionLeft = Math.max(0, this.reactionLeft - dt);
       if (this.reactionLeft === 0) {
         const land = ball.predictLanding();
-        targetX = land.x;
-        targetY = Math.min(land.y, NET_Y - 1.2);
+        const mine = !this.coverHalf
+          || (this.coverHalf === 'left' ? land.x < CENTER_X : land.x >= CENTER_X);
+        if (mine) {
+          targetX = land.x;
+          targetY = this.side === 'top'
+            ? Math.min(land.y, NET_Y - 1.2)
+            : Math.max(land.y, NET_Y + 1.2);
+        }
       }
     } else {
       this.trackedBall = null;
@@ -66,7 +82,11 @@ export class Cpu {
       this.speedNow = 0;
     }
     this.x = Math.max(-MARGIN + 1, Math.min(COURT_W + MARGIN - 1, this.x));
-    this.y = Math.max(-MARGIN + 1, Math.min(NET_Y - 1.2, this.y));
+    if (this.side === 'top') {
+      this.y = Math.max(-MARGIN + 1, Math.min(NET_Y - 1.2, this.y));
+    } else {
+      this.y = Math.max(NET_Y + 1.2, Math.min(COURT_L + MARGIN - 1, this.y));
+    }
   }
 
   canReach(ball) {
@@ -84,18 +104,18 @@ export class Cpu {
     if (Math.random() < p.lobbiness * 0.35) {
       return {
         tx: clampX(rand(3, COURT_W - 3) + rand(-err, err)),
-        ty: rand(COURT_L - 8, COURT_L - 2) + rand(-err, err),
+        ty: this.m(rand(COURT_L - 8, COURT_L - 2)) + rand(-err, err),
         apexZ: rand(9, 11),
         timeScale: 1,
         spin: 0,
       };
     }
 
-    const atKitchenLine = this.y > KITCHEN_TOP - 3;
+    const atKitchenLine = this.m(this.y) > KITCHEN_TOP - 3;
     if (atKitchenLine && Math.random() < p.dinkiness * 0.8) {
       return {
         tx: clampX(rand(4, COURT_W - 4) + rand(-err, err)),
-        ty: NET_Y + rand(2.5, KITCHEN_BOTTOM - NET_Y - 0.5),
+        ty: this.m(NET_Y + rand(2.5, KITCHEN_BOTTOM - NET_Y - 0.5)),
         apexZ: 4.5,
         timeScale: 1,
         spin: -0.4, // dinks carry slice
@@ -110,7 +130,7 @@ export class Cpu {
     const agg = p.aggression * Math.max(0.3, Math.min(1, ball.z / 4));
     return {
       tx: awayX + rand(-err, err),
-      ty: rand(KITCHEN_BOTTOM + 2, COURT_L - 1) + rand(-err, err),
+      ty: this.m(rand(KITCHEN_BOTTOM + 2, COURT_L - 1)) + rand(-err, err),
       apexZ: Math.max(3.6, rand(4.3, 5.5) - agg * 0.8),
       timeScale: 1 - 0.25 * agg,
       spin: agg * 0.6, // aggressive types drive with topspin
@@ -118,7 +138,8 @@ export class Cpu {
   }
 
   draw(ctx, view) {
-    drawFigure(ctx, view, this.x, this.y, '#ff8a5e', 1);
+    const color = this.side === 'bottom' ? '#8fd3a8' : '#ff8a5e';
+    drawFigure(ctx, view, this.x, this.y, color, this.side === 'top' ? 1 : -1);
   }
 }
 
