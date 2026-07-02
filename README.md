@@ -5,6 +5,16 @@ win by 2 — and yes, the kitchen rules are real.
 
 No dependencies, no build step.
 
+## Modes
+
+- **Tournament:** climb a ladder of 8 named opponents, each with a distinct
+  playstyle — from Rookie Rick to The Wall. Win to advance a rung; lose and
+  retry. Progress is saved in your browser.
+- **Quick Play:** a single game vs an easy/medium/hard CPU.
+
+Points end with a slow-mo replay of the final shot (any key skips it). Sound
+is fully synthesized — mute with **M** or the speaker button.
+
 ## Run it
 
 ES modules need an HTTP server (opening `index.html` directly won't work):
@@ -46,8 +56,11 @@ Every rally ends with a banner telling you why.
 ## Development
 
 ```sh
-node tests/rules.test.js   # rules engine unit tests
-node tests/smoke.test.js   # headless full-game simulation
+node tests/rules.test.js        # rules engine unit tests
+node tests/smoke.test.js        # headless full-game simulation
+node tests/tournament.test.js   # tournament flow: win advances the rung
+node tests/ladder.test.js       # ladder difficulty ascends (--sweep for all 8)
+node tests/balance.test.js hard # bot vs quick-play difficulty (add 'charge')
 ```
 
 Open `http://localhost:8000/#demo` for an auto-playing demo (medium CPU,
