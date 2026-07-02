@@ -49,6 +49,9 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') { ui.setMuteLabel(toggleMute()); return; }
   if (e.code === 'KeyV') { toggleView(); return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') armedMods.dink = true;
+  if (e.code === 'KeyE') armedMods.spin = 1;
+  if (e.code === 'KeyQ') armedMods.spin = -1;
   if (state === 'replay') replaySkip = true;
   keys.add(e.code);
 });
@@ -103,6 +106,9 @@ let netRebound = false; // ball fell back off the net; label the point 'Netted!'
 let swingWindow = 0; // buffered swing: connects if the ball arrives in time
 let swingCooldown = 0; // whiff recovery; also grace right after serving
 let swingMods = { dink: false, spin: 0 }; // captured when the swing starts
+// Tapping Shift/E/Q any time before the swing arms the stroke — no need to
+// hold anything while releasing the swing button.
+let armedMods = { dink: false, spin: 0 };
 
 // A release starts a swing: it stays live for a short window so slightly
 // early timing still connects. Dink/spin modifiers are locked in here —
@@ -110,8 +116,8 @@ let swingMods = { dink: false, spin: 0 }; // captured when the swing starts
 function queueSwing() {
   if (state !== 'rally' || swingCooldown > 0 || swingWindow > 0) return;
   swingMods = {
-    dink: keys.has('ShiftLeft') || keys.has('ShiftRight'),
-    spin: keys.has('KeyE') ? 1 : (keys.has('KeyQ') ? -1 : 0),
+    dink: armedMods.dink || keys.has('ShiftLeft') || keys.has('ShiftRight'),
+    spin: keys.has('KeyE') ? 1 : (keys.has('KeyQ') ? -1 : armedMods.spin),
   };
   swingWindow = 0.16;
   player.swingT = 0.28;
@@ -352,6 +358,7 @@ function serve() {
   netRebound = false;
   swingWindow = 0;
   swingCooldown = 0.5; // grace: releasing the serve keypress isn't a swing
+  armedMods = { dink: false, spin: 0 };
   state = 'rally';
 }
 
@@ -494,6 +501,7 @@ function handleHits() {
       if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
       ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
       netRebound = false;
+      armedMods = { dink: false, spin: 0 };
       return null;
     }
   }
@@ -673,6 +681,24 @@ function drawLetterbox(ctx) {
   ctx.fillText('● REPLAY', view.width / 2, barH * 0.65);
 }
 
+function drawStrokeBadge(ctx) {
+  const labels = [];
+  if (armedMods.dink) labels.push('DINK');
+  if (armedMods.spin > 0) labels.push('TOPSPIN');
+  else if (armedMods.spin < 0) labels.push('SLICE');
+  if (labels.length === 0) return;
+  const p = view.toPx(player.x, player.y);
+  const s = view.scaleAt(player.y);
+  ctx.font = `700 ${Math.max(12, Math.round(s * 0.55))}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#b8e986';
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.lineWidth = 3;
+  const ty = p.py + s * (view.mode === '3d' ? 1.1 : 2.4);
+  ctx.strokeText(labels.join(' + '), p.px, ty);
+  ctx.fillText(labels.join(' + '), p.px, ty);
+}
+
 function draw() {
   const ctx = view.ctx;
   const { ox, oy } = fx.offsetPx(view.scale);
@@ -702,6 +728,7 @@ function draw() {
   fx.drawOver(ctx, view);
   if ((state === 'rally' || state === 'serving') && aim.active) drawCrosshair(ctx);
   if (charge > 0) drawChargeMeter(ctx);
+  if (state === 'rally') drawStrokeBadge(ctx);
   ctx.restore();
   if (state === 'replay') drawLetterbox(ctx);
 }

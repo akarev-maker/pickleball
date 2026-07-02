@@ -44,8 +44,8 @@ or `npm start`, which runs the same command.
 | Arrow keys / WASD | Move |
 | Mouse | Aim — the crosshair is where your shots (and serves) go |
 | Hold + release Space / mouse button | Swing: hold to charge power, release as the ball arrives. Mistimed swings whiff. |
-| Shift (held at contact) | Dink — a soft drop shot into the opponent's kitchen |
-| E / Q (held at contact) | Topspin / slice. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. |
+| Shift (tap before swinging) | Arms a dink — a soft drop shot into the opponent's kitchen |
+| E / Q (tap before swinging) | Arms topspin / slice for your next swing. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. A badge under your player shows what's armed. |
 | Space | Serve |
 | V | Toggle camera: top-down or behind-the-player pseudo-3D |
 | Esc / P | Pause (resume, restart match, or quit) |
