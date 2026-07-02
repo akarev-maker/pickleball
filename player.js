@@ -3,7 +3,8 @@
 import { COURT_W, COURT_L, NET_Y, MARGIN } from './court.js';
 
 const SPEED = 16; // ft/s
-export const REACH = 2.5; // ft
+export const REACH = 2.5; // ft — CPU reach
+export const PLAYER_REACH = 3.2; // ft — forgiving: the paddle extends past the body
 export const MAX_HIT_HEIGHT = 7; // ft
 
 export class Player {
@@ -14,6 +15,7 @@ export class Player {
     this.dy = 0;
     this.speedNow = 0;
     this.color = '#ffd75e'; // equipped paddle color
+    this.swingT = 0; // seconds left in the swing animation
   }
 
   update(dt, keys) {
@@ -31,6 +33,7 @@ export class Player {
     this.dx = dx;
     this.dy = dy;
     this.speedNow = len > 0 ? SPEED : 0;
+    this.swingT = Math.max(0, this.swingT - dt);
     this.x += dx * SPEED * dt;
     this.y += dy * SPEED * dt;
     // Confined to own half plus a slim apron (stays in frame in both
@@ -44,19 +47,24 @@ export class Player {
   }
 
   canReach(ball) {
-    return Math.hypot(ball.x - this.x, ball.y - this.y) < REACH
+    return Math.hypot(ball.x - this.x, ball.y - this.y) < PLAYER_REACH
       && ball.z < MAX_HIT_HEIGHT;
   }
 
   draw(ctx, view) {
-    drawFigure(ctx, view, this.x, this.y, this.color, -1);
+    drawFigure(ctx, view, this.x, this.y, this.color, -1, this.swingT);
   }
 }
 
 // Shared by player and CPU.
 // facing: -1 = seen from behind (bottom side), +1 = facing the viewer (top).
-export function drawFigure(ctx, view, x, y, color, facing) {
+// swingT: seconds remaining in the swing animation (0 = at rest).
+const SWING_TIME = 0.28;
+
+export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
   const p = view.toPx(x, y);
+  // 0 at rest, sweeps 0→1→0 through the stroke.
+  const sweep = swingT > 0 ? Math.sin((1 - swingT / SWING_TIME) * Math.PI) : 0;
 
   if (view.mode === '3d') {
     // Readability floor: far players never shrink into dots.
@@ -88,14 +96,18 @@ export function drawFigure(ctx, view, x, y, color, facing) {
     ctx.beginPath();
     ctx.arc(p.px, p.py - s * 2.7, s * 0.38, 0, Math.PI * 2);
     ctx.fill();
-    // Arm + paddle on the racket side
+    // Arm + paddle on the racket side; the stroke sweeps across the body.
     const side = facing === -1 ? 1 : -1;
-    const hx = p.px + side * s * 0.95;
-    const hy = p.py - s * 1.55;
+    const armAngle = 0.35 - 2.1 * sweep; // radians below horizontal at rest
+    const armLen = s * (0.95 + 0.25 * sweep);
+    const shx = p.px + side * s * 0.45;
+    const shy = p.py - s * 1.8;
+    const hx = shx + side * Math.cos(armAngle) * armLen;
+    const hy = shy + Math.sin(armAngle) * armLen * 0.55;
     ctx.strokeStyle = '#e8b98a';
     ctx.lineWidth = Math.max(2, s * 0.2);
     ctx.beginPath();
-    ctx.moveTo(p.px + side * s * 0.45, p.py - s * 1.8);
+    ctx.moveTo(shx, shy);
     ctx.lineTo(hx, hy);
     ctx.stroke();
     ctx.strokeStyle = '#7a4a2b';
@@ -106,7 +118,15 @@ export function drawFigure(ctx, view, x, y, color, facing) {
     ctx.stroke();
     ctx.fillStyle = '#31456b';
     ctx.beginPath();
-    ctx.ellipse(hx + side * s * 0.28, hy - s * 0.7, s * 0.32, s * 0.42, side * 0.4, 0, Math.PI * 2);
+    ctx.ellipse(
+      hx + side * s * 0.28,
+      hy - s * 0.7,
+      s * 0.32,
+      s * 0.42,
+      side * (0.4 + 1.4 * sweep),
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.lineWidth = 1.5;
@@ -130,7 +150,14 @@ export function drawFigure(ctx, view, x, y, color, facing) {
   ctx.stroke();
 
   ctx.fillStyle = '#3a2c1e';
+  const dotAngle = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing;
   ctx.beginPath();
-  ctx.arc(p.px + scale * 0.65, p.py + facing * scale * 0.55, scale * 0.32, 0, Math.PI * 2);
+  ctx.arc(
+    p.px + Math.cos(dotAngle) * scale * 0.85,
+    p.py + Math.sin(dotAngle) * scale * 0.85,
+    scale * 0.32,
+    0,
+    Math.PI * 2,
+  );
   ctx.fill();
 }
