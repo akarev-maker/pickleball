@@ -15,7 +15,7 @@ function makeElement(id) {
     style: {},
     dataset: {},
     onclick: null,
-    classList: { add: noop, remove: noop },
+    classList: { add: noop, remove: noop, toggle: noop },
     width: 0,
     height: 0,
     getContext: () => ctxStub,
@@ -35,6 +35,7 @@ export function installDom() {
     'mode-quick', 'mode-tournament',
     'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',
     'champion', 'champion-restart',
+    'pause', 'pause-resume', 'pause-restart', 'pause-quit',
     'gameover', 'gameover-title', 'gameover-line', 'restart', 'mute',
   ];
   for (const id of ids) {

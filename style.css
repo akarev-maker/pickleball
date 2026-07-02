@@ -184,9 +184,30 @@ button.secondary:hover {
   background: rgba(10, 18, 14, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
-  color: #f2f5f3;
-  font-size: 18px;
-  padding: 6px 10px;
+  color: #b8e986;
+  padding: 7px 9px;
+  line-height: 0;
+  transition: color 0.15s ease, transform 0.1s ease;
+}
+
+#mute:hover {
+  background: rgba(10, 18, 14, 0.9);
+  transform: scale(1.08);
+}
+
+#mute.muted {
+  color: rgba(242, 245, 243, 0.45);
+}
+
+#mute svg {
+  display: block;
+}
+
+.pause-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 16px;
 }
 
 .hidden {

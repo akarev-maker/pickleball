@@ -30,7 +30,8 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
   }
   initAudio();
-  if (e.code === 'KeyM') ui.setMuteLabel(toggleMute());
+  if (e.code === 'KeyM') { ui.setMuteLabel(toggleMute()); return; }
+  if (e.code === 'Escape' || e.code === 'KeyP') { togglePause(); return; }
   if (state === 'replay') replaySkip = true;
   keys.add(e.code);
 });
@@ -84,13 +85,41 @@ function opponentName() {
   return mode === 'tournament' && opponent ? opponent.name : 'CPU';
 }
 
+let lastDifficulty = 'medium';
+
 function startGame(difficulty) {
   mode = 'quick';
   opponent = null;
+  lastDifficulty = difficulty;
   cpu.setDifficulty(difficulty);
   score = new Score();
   ui.updateScore(score, score.servingSide);
   startServe();
+}
+
+const PAUSABLE = ['intro', 'serving', 'rally', 'replay', 'point-banner'];
+let pausedFrom = null;
+
+function togglePause() {
+  if (state === 'paused') {
+    ui.hidePause();
+    state = pausedFrom;
+  } else if (PAUSABLE.includes(state)) {
+    pausedFrom = state;
+    state = 'paused';
+    ui.showPause({
+      onResume: togglePause,
+      onRestart: () => {
+        ui.hidePause();
+        if (mode === 'tournament') startTournamentMatch();
+        else startGame(lastDifficulty);
+      },
+      onQuit: () => {
+        ui.hidePause();
+        showMainMenu();
+      },
+    });
+  }
 }
 
 function showMainMenu() {

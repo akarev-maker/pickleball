@@ -14,6 +14,7 @@ const ladderReset = document.getElementById('ladder-reset');
 const ladderBack = document.getElementById('ladder-back');
 const championEl = document.getElementById('champion');
 const championRestart = document.getElementById('champion-restart');
+const pauseEl = document.getElementById('pause');
 const gameoverEl = document.getElementById('gameover');
 const gameoverTitle = document.getElementById('gameover-title');
 const gameoverLine = document.getElementById('gameover-line');
@@ -115,8 +116,30 @@ export function showGameOver(title, line, buttonLabel, onContinue) {
   };
 }
 
+// Pause overlays on top of the frozen scene; it does not hide the banner.
+export function showPause({ onResume, onRestart, onQuit }) {
+  pauseEl.classList.remove('hidden');
+  document.getElementById('pause-resume').onclick = onResume;
+  document.getElementById('pause-restart').onclick = onRestart;
+  document.getElementById('pause-quit').onclick = onQuit;
+}
+
+export function hidePause() {
+  pauseEl.classList.add('hidden');
+}
+
+const SPEAKER_ON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" '
+  + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+  + '<path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/>'
+  + '<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const SPEAKER_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" '
+  + 'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+  + '<path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/>'
+  + '<line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>';
+
 export function setMuteLabel(muted) {
-  muteBtn.textContent = muted ? '🔇' : '🔊';
+  muteBtn.innerHTML = muted ? SPEAKER_OFF : SPEAKER_ON;
+  muteBtn.classList.toggle('muted', muted);
 }
 
 export function onMuteClick(fn) {
@@ -124,7 +147,7 @@ export function onMuteClick(fn) {
 }
 
 export function hideOverlays() {
-  for (const el of [menuEl, ladderEl, championEl, gameoverEl]) {
+  for (const el of [menuEl, ladderEl, championEl, gameoverEl, pauseEl]) {
     el.classList.add('hidden');
   }
   hideBanner();

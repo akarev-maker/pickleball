@@ -35,6 +35,8 @@ or `npm start`, which runs the same command.
 | Hold mouse button / Space | Charge power: flatter, faster, riskier shots |
 | Shift (held at contact) | Dink — a soft drop shot into the opponent's kitchen |
 | Space | Serve |
+| Esc / P | Pause (resume, restart match, or quit) |
+| M | Mute |
 | R | Quit to menu |
 
 You swing automatically whenever the ball is within reach. Clean, planted

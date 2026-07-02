@@ -77,10 +77,12 @@ function noise(dur, filterHz, q, gainPeak, when = 0, rampUp = 0.05) {
 }
 
 export const sfx = {
-  // Pitch and snap rise with shot power.
+  // The pickleball "pop": a sharp noise transient plus a quick hollow
+  // thump — brighter and louder with power. No tonal beep.
   paddle(power = 0) {
     if (!ready()) return;
-    note('square', 300 + power * 400, 180, 0.07, 0.18 + power * 0.12);
+    noise(0.05 + power * 0.02, 1500 + power * 900, 1.4, 0.4 + power * 0.2, 0, 0.003);
+    note('sine', 210 + power * 120, 85, 0.06, 0.22);
   },
   bounce() {
     if (!ready()) return;
@@ -91,9 +93,11 @@ export const sfx = {
     note('sine', 90, 40, 0.15, 0.2);
     noise(0.12, 900, 1.2, 0.1);
   },
+  // A soft touch shot: same pop, much gentler.
   dink() {
     if (!ready()) return;
-    note('triangle', 900, 700, 0.05, 0.12);
+    noise(0.035, 1100, 1.8, 0.18, 0, 0.003);
+    note('sine', 260, 140, 0.045, 0.1);
   },
   score() {
     if (!ready()) return;

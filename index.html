@@ -30,7 +30,7 @@
           <p><strong>Aim:</strong> mouse crosshair — shots fly toward it</p>
           <p><strong>Power:</strong> hold mouse button / Space to charge</p>
           <p><strong>Dink:</strong> hold Shift when hitting</p>
-          <p><strong>Serve:</strong> Space &nbsp;·&nbsp; <strong>Mute:</strong> M</p>
+          <p><strong>Serve:</strong> Space &nbsp;·&nbsp; <strong>Pause:</strong> Esc &nbsp;·&nbsp; <strong>Mute:</strong> M</p>
           <p>You swing automatically when the ball is in reach.
              Charged shots are faster but riskier.</p>
         </div>
@@ -51,6 +51,16 @@
         <h1>🏆 Champion!</h1>
         <p class="tagline">You climbed the whole ladder. The Wall crumbled.</p>
         <button id="champion-restart">Back to menu</button>
+      </div>
+
+      <div id="pause" class="overlay hidden">
+        <h1>Paused</h1>
+        <div class="pause-buttons">
+          <button id="pause-resume">Resume</button>
+          <button id="pause-restart" class="secondary">Restart match</button>
+          <button id="pause-quit" class="secondary">Quit to menu</button>
+        </div>
+        <p class="tagline">Esc / P to resume</p>
       </div>
 
       <div id="gameover" class="overlay hidden">
