@@ -3,7 +3,7 @@
 
 import { PLAYER, CPU } from './rules.js';
 import {
-  PADDLES, BALLS, isUnlocked, equip, equipped, loadStats,
+  PADDLES, BALLS, isUnlocked, equip, equipped, loadStats, dailyChallenge,
 } from './progress.js';
 
 const scoreEl = document.getElementById('score');
@@ -29,9 +29,10 @@ let bannerTimer = null;
 export function updateScore(score, servingSide, opponentName = 'CPU') {
   const you = `YOU ${score.get(PLAYER)}`;
   const cpu = `${opponentName} ${score.get(CPU)}`;
+  const dot = '<span class="serve-dot"></span>';
   scoreEl.innerHTML = servingSide === PLAYER
-    ? `<span class="serving">🏓 ${you}</span> — ${cpu}`
-    : `${you} — <span class="serving">${cpu} 🏓</span>`;
+    ? `<span class="serving">${dot}${you}</span> — ${cpu}`
+    : `${you} — <span class="serving">${dot}${cpu}</span>`;
 }
 
 export function showBanner(text, ms = 2000) {
@@ -77,6 +78,10 @@ export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {
     menuEl.classList.add('hidden');
     if (onDaily) onDaily();
   };
+  const dailyLabel = document.getElementById('menu-daily-label');
+  if (dailyLabel) {
+    dailyLabel.textContent = dailyChallenge().doneToday ? 'Daily ✓' : 'Daily';
+  }
   document.getElementById('menu-stats').onclick = () => showStats();
   document.getElementById('menu-locker').onclick = () => showLocker(onCosmetics);
   // Difficulty buttons are always wired so the flow is one click in tests.

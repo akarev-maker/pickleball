@@ -70,8 +70,10 @@ canvas.addEventListener('mousemove', (e) => {
 });
 canvas.addEventListener('mousedown', () => { initAudio(); mouseHeld = true; });
 window.addEventListener('mouseup', () => {
+  // Only a release of a charge started on the canvas is a swing — clicking
+  // UI buttons mid-rally must not cause phantom whiffs.
+  if (mouseHeld) queueSwing('mouse');
   mouseHeld = false;
-  queueSwing('mouse');
 });
 
 // --- Touch controls: left joystick moves (and steers shots), right-hand
@@ -318,9 +320,10 @@ function startTournamentMatch() {
 
 function handleMatchOver(winner) {
   const won = winner === PLAYER;
-  const title = won
+  let title = won
     ? `You win!  ${score.get(PLAYER)}–${score.get(CPU)}`
     : `${opponentName()} wins!  ${score.get(CPU)}–${score.get(PLAYER)}`;
+  if (bestOf3) title += `  (games ${matchGames[PLAYER]}–${matchGames[CPU]})`;
   sfx.applause();
 
   const champion = mode === 'tournament' && won && loadRung() + 1 >= ROSTER.length;
