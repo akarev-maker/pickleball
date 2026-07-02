@@ -49,15 +49,12 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyM') { ui.setMuteLabel(toggleMute()); return; }
   if (e.code === 'KeyV') { toggleView(); return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { togglePause(); return; }
-  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') armedMods.dink = true;
-  if (e.code === 'KeyE') armedMods.spin = 1;
-  if (e.code === 'KeyQ') armedMods.spin = -1;
   if (state === 'replay') replaySkip = true;
   keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
   keys.delete(e.code);
-  if (e.code === 'Space') queueSwing();
+  if (SWING_KEYS.includes(e.code)) queueSwing(e.code);
 });
 
 // Mouse: crosshair aiming + hold-to-charge power.
@@ -72,7 +69,7 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('mousedown', () => { initAudio(); mouseHeld = true; });
 window.addEventListener('mouseup', () => {
   mouseHeld = false;
-  queueSwing();
+  queueSwing('mouse');
 });
 
 const ball = new Ball();
@@ -106,18 +103,22 @@ let netRebound = false; // ball fell back off the net; label the point 'Netted!'
 let swingWindow = 0; // buffered swing: connects if the ball arrives in time
 let swingCooldown = 0; // whiff recovery; also grace right after serving
 let swingMods = { dink: false, spin: 0 }; // captured when the swing starts
-// Tapping Shift/E/Q any time before the swing arms the stroke — no need to
-// hold anything while releasing the swing button.
-let armedMods = { dink: false, spin: 0 };
+// Every stroke has its own swing button: hold it to charge, release to hit.
+// Space/mouse = drive, Shift = dink, E = topspin, Q = slice.
+const SWING_KEYS = ['Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyQ'];
 
 // A release starts a swing: it stays live for a short window so slightly
 // early timing still connects. Dink/spin modifiers are locked in here —
 // releasing them together with the swing button still counts.
-function queueSwing() {
+// source: the swing key that was released (or 'mouse'). The released key
+// picks the stroke; keys still held count too, so combos also work.
+function queueSwing(source) {
   if (state !== 'rally' || swingCooldown > 0 || swingWindow > 0) return;
+  const shiftHeld = keys.has('ShiftLeft') || keys.has('ShiftRight');
   swingMods = {
-    dink: armedMods.dink || keys.has('ShiftLeft') || keys.has('ShiftRight'),
-    spin: keys.has('KeyE') ? 1 : (keys.has('KeyQ') ? -1 : armedMods.spin),
+    dink: source === 'ShiftLeft' || source === 'ShiftRight' || shiftHeld,
+    spin: source === 'KeyE' || keys.has('KeyE') ? 1
+      : (source === 'KeyQ' || keys.has('KeyQ') ? -1 : 0),
   };
   swingWindow = 0.16;
   player.swingT = 0.28;
@@ -358,7 +359,6 @@ function serve() {
   netRebound = false;
   swingWindow = 0;
   swingCooldown = 0.5; // grace: releasing the serve keypress isn't a swing
-  armedMods = { dink: false, spin: 0 };
   state = 'rally';
 }
 
@@ -501,7 +501,6 @@ function handleHits() {
       if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
       ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
       netRebound = false;
-      armedMods = { dink: false, spin: 0 };
       return null;
     }
   }
@@ -682,10 +681,11 @@ function drawLetterbox(ctx) {
 }
 
 function drawStrokeBadge(ctx) {
+  // Shows the stroke you're currently charging.
   const labels = [];
-  if (armedMods.dink) labels.push('DINK');
-  if (armedMods.spin > 0) labels.push('TOPSPIN');
-  else if (armedMods.spin < 0) labels.push('SLICE');
+  if (keys.has('ShiftLeft') || keys.has('ShiftRight')) labels.push('DINK');
+  if (keys.has('KeyE')) labels.push('TOPSPIN');
+  else if (keys.has('KeyQ')) labels.push('SLICE');
   if (labels.length === 0) return;
   const p = view.toPx(player.x, player.y);
   const s = view.scaleAt(player.y);
@@ -751,7 +751,7 @@ function frame(now) {
       if (serveTimer <= 0) serve();
     }
   } else if (state === 'rally') {
-    const charging = keys.has('Space') || mouseHeld;
+    const charging = mouseHeld || SWING_KEYS.some((k) => keys.has(k));
     charge = charging ? Math.min(1, charge + dt / 0.8) : Math.max(0, charge - dt * 0.5);
     swingCooldown = Math.max(0, swingCooldown - dt);
     if (swingWindow > 0) {
