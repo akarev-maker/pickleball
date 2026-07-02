@@ -16,12 +16,15 @@ export class Ball {
     this.inFlight = false;
     this.launchId = 0; // increments per launch so the CPU can react per shot
     this.spin = 0; // -1 slice .. +1 topspin
+    this.wind = 0; // horizontal accel (ft/s²), daily-challenge modifier
+    this.gravityScale = 1; // daily-challenge modifier
+    this.skinColor = '#f3ff4e';
   }
 
   // Topspin makes the ball fly "heavy" (dips → same target, faster flight);
   // slice floats. Using effective gravity keeps landing prediction exact.
   get geff() {
-    return G * (1 + 0.35 * this.spin);
+    return G * (1 + 0.35 * this.spin) * this.gravityScale;
   }
 
   placeAt(x, y, z = 0) {
@@ -47,9 +50,10 @@ export class Ball {
     const vz0Arc = Math.sqrt(2 * g * rise);
     let t = (vz0Arc + Math.sqrt(vz0Arc * vz0Arc + 2 * g * this.z)) / g;
     t *= timeScale;
-    // Vertical speed that still lands at z = 0 at time t.
+    // Vertical speed that still lands at z = 0 at time t; horizontal aim
+    // leads the wind so the shot still arrives at the target.
     this.vz = (0.5 * g * t * t - this.z) / t;
-    this.vx = (tx - this.x) / t;
+    this.vx = (tx - this.x) / t - 0.5 * this.wind * t;
     this.vy = (ty - this.y) / t;
     this.inFlight = true;
     this.launchId++;
@@ -58,6 +62,7 @@ export class Ball {
   // Integrates one step; returns 'bounce' if the ball hit the ground.
   update(dt) {
     if (!this.inFlight) return null;
+    this.vx += this.wind * dt;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.vz -= this.geff * dt;
@@ -87,7 +92,11 @@ export class Ball {
     if (!this.inFlight) return { x: this.x, y: this.y, t: 0 };
     const g = this.geff;
     const t = (this.vz + Math.sqrt(this.vz * this.vz + 2 * g * this.z)) / g;
-    return { x: this.x + this.vx * t, y: this.y + this.vy * t, t };
+    return {
+      x: this.x + this.vx * t + 0.5 * this.wind * t * t,
+      y: this.y + this.vy * t,
+      t,
+    };
   }
 
   draw(ctx, view) {
@@ -113,7 +122,7 @@ export class Ball {
 
     // Ball, offset upward with height; tinted by spin while flying
     const by = sp.py - this.z * scale * 0.7;
-    let color = '#f3ff4e';
+    let color = this.skinColor;
     if (this.inFlight && this.spin > 0.15) color = '#ffb14e';
     else if (this.inFlight && this.spin < -0.15) color = '#a7e9ff';
     ctx.fillStyle = color;

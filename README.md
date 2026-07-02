@@ -12,8 +12,15 @@ No dependencies, no build step.
   retry. Progress is saved in your browser.
 - **Quick Play:** a single game vs an easy/medium/hard CPU.
 
+- **Daily challenge:** a date-seeded opponent and physics modifier (crosswinds,
+  moon gravity…) — one win credit per day.
+
 Points end with a slow-mo replay of the final shot (any key skips it). Sound
 is fully synthesized — mute with **M** or the speaker button.
+
+**Stats** (wins, shutouts, championships, longest rally, dailies) persist in
+your browser, and milestones unlock paddle colors and ball skins in the
+**Locker** on the main menu.
 
 ## Run it
 

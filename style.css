@@ -210,6 +210,76 @@ button.secondary:hover {
   margin: 8px 0 16px;
 }
 
+.extras {
+  margin-top: -6px;
+}
+
+.extras button {
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 5px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+}
+
+#stats-list {
+  margin-bottom: 20px;
+  min-width: 260px;
+  text-align: left;
+}
+
+#locker-list {
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+#locker-list h3 {
+  color: #b8e986;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 12px 0 6px;
+}
+
+.locker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f2f5f3;
+  font-weight: 500;
+  text-align: left;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.locker-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.locker-item .dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.locker-item.locked {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.locker-item.equipped {
+  outline: 2px solid #b8e986;
+}
+
 .hidden {
   display: none !important;
 }

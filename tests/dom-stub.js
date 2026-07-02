@@ -36,6 +36,8 @@ export function installDom() {
     'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',
     'champion', 'champion-restart',
     'pause', 'pause-resume', 'pause-restart', 'pause-quit',
+    'menu-daily', 'menu-stats', 'menu-locker',
+    'stats', 'stats-list', 'stats-back', 'locker', 'locker-list', 'locker-back',
     'gameover', 'gameover-title', 'gameover-line', 'restart', 'mute',
   ];
   for (const id of ids) {

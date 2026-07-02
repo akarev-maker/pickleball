@@ -13,6 +13,7 @@ export class Player {
     this.dx = 0;
     this.dy = 0;
     this.speedNow = 0;
+    this.color = '#ffd75e'; // equipped paddle color
   }
 
   update(dt, keys) {
@@ -47,7 +48,7 @@ export class Player {
   }
 
   draw(ctx, view) {
-    drawFigure(ctx, view, this.x, this.y, '#ffd75e', -1);
+    drawFigure(ctx, view, this.x, this.y, this.color, -1);
   }
 }
 

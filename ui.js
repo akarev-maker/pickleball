@@ -2,6 +2,9 @@
 // with fixed ids (keeps the test DOM stub trivial).
 
 import { PLAYER, CPU } from './rules.js';
+import {
+  PADDLES, BALLS, isUnlocked, equip, equipped, loadStats,
+} from './progress.js';
 
 const scoreEl = document.getElementById('score');
 const bannerEl = document.getElementById('banner');
@@ -45,7 +48,7 @@ export function hideBanner() {
   bannerEl.classList.add('hidden');
 }
 
-export function showModeMenu(onQuick, onTournament) {
+export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {}) {
   hideOverlays();
   menuEl.classList.remove('hidden');
   document.getElementById('mode-quick').onclick = () => {
@@ -55,6 +58,12 @@ export function showModeMenu(onQuick, onTournament) {
     menuEl.classList.add('hidden');
     onTournament();
   };
+  document.getElementById('menu-daily').onclick = () => {
+    menuEl.classList.add('hidden');
+    if (onDaily) onDaily();
+  };
+  document.getElementById('menu-stats').onclick = () => showStats();
+  document.getElementById('menu-locker').onclick = () => showLocker(onCosmetics);
   // Difficulty buttons are always wired so the flow is one click in tests.
   for (const btn of menuEl.querySelectorAll('button[data-difficulty]')) {
     btn.onclick = () => {
@@ -62,6 +71,61 @@ export function showModeMenu(onQuick, onTournament) {
       onQuick(btn.dataset.difficulty);
     };
   }
+}
+
+export function showStats() {
+  hideOverlays();
+  const s = loadStats();
+  const rows = [
+    ['Games', `${s.wins} W — ${s.games - s.wins} L`],
+    ['Shutouts (11–0)', s.shutouts],
+    ['Championships', s.champs],
+    ['Points', `${s.points} W — ${s.pointsAgainst} L`],
+    ['Longest rally', `${s.longestRally} hits`],
+    ['Daily challenges won', s.dailyWins],
+  ];
+  document.getElementById('stats-list').innerHTML = rows
+    .map(([k, v]) => `<div class="stat-row"><span>${k}</span><b>${v}</b></div>`)
+    .join('');
+  const statsEl = document.getElementById('stats');
+  statsEl.classList.remove('hidden');
+  document.getElementById('stats-back').onclick = () => {
+    statsEl.classList.add('hidden');
+    menuEl.classList.remove('hidden');
+  };
+}
+
+export function showLocker(onCosmetics) {
+  hideOverlays();
+  const lockerEl = document.getElementById('locker');
+  const list = document.getElementById('locker-list');
+
+  function render() {
+    const eq = equipped();
+    const section = (title, slot, items) => `<h3>${title}</h3>` + items.map((item) => {
+      const open = isUnlocked(item);
+      const cls = `locker-item${open ? '' : ' locked'}${eq[slot] === item.id ? ' equipped' : ''}`;
+      const label = open ? item.name : `${item.name} — ${item.how}`;
+      return `<button class="${cls}" data-slot="${slot}" data-id="${item.id}" ${open ? '' : 'disabled'}>`
+        + `<span class="dot" style="background:${item.color}"></span>${label}</button>`;
+    }).join('');
+    list.innerHTML = section('Paddles', 'paddle', PADDLES) + section('Balls', 'ball', BALLS);
+  }
+
+  list.onclick = (e) => {
+    const btn = e.target?.closest?.('button[data-slot]');
+    if (!btn) return;
+    equip(btn.dataset.slot, btn.dataset.id);
+    if (onCosmetics) onCosmetics();
+    render();
+  };
+
+  render();
+  lockerEl.classList.remove('hidden');
+  document.getElementById('locker-back').onclick = () => {
+    lockerEl.classList.add('hidden');
+    menuEl.classList.remove('hidden');
+  };
 }
 
 export function showLadder(roster, rung, { onPlay, onReset, onBack }) {
@@ -147,7 +211,8 @@ export function onMuteClick(fn) {
 }
 
 export function hideOverlays() {
-  for (const el of [menuEl, ladderEl, championEl, gameoverEl, pauseEl]) {
+  const extras = [document.getElementById('stats'), document.getElementById('locker')];
+  for (const el of [menuEl, ladderEl, championEl, gameoverEl, pauseEl, ...extras]) {
     el.classList.add('hidden');
   }
   hideBanner();

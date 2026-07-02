@@ -25,6 +25,11 @@
           <button data-difficulty="medium">Medium</button>
           <button data-difficulty="hard">Hard</button>
         </div>
+        <div class="modes extras">
+          <button id="menu-daily" class="secondary">📅 Daily</button>
+          <button id="menu-stats" class="secondary">Stats</button>
+          <button id="menu-locker" class="secondary">Locker</button>
+        </div>
         <div id="help">
           <p><strong>Move:</strong> Arrow keys / WASD</p>
           <p><strong>Aim:</strong> mouse crosshair — shots fly toward it</p>
@@ -52,6 +57,18 @@
         <h1>🏆 Champion!</h1>
         <p class="tagline">You climbed the whole ladder. The Wall crumbled.</p>
         <button id="champion-restart">Back to menu</button>
+      </div>
+
+      <div id="stats" class="overlay hidden">
+        <h1>Stats</h1>
+        <div id="stats-list"></div>
+        <button id="stats-back" class="secondary">Back</button>
+      </div>
+
+      <div id="locker" class="overlay hidden">
+        <h1>Locker</h1>
+        <div id="locker-list"></div>
+        <button id="locker-back" class="secondary">Back</button>
       </div>
 
       <div id="pause" class="overlay hidden">

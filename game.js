@@ -15,6 +15,9 @@ import { ROSTER, loadRung, saveRung, resetLadder } from './ladder.js';
 import { initAudio, sfx, toggleMute, isMuted } from './audio.js';
 import { Fx } from './fx.js';
 import { ReplayRecorder } from './replay.js';
+import {
+  recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors,
+} from './progress.js';
 
 const NET_HEIGHT = 3; // ft
 const BANNER_SECS = 2;
@@ -82,19 +85,46 @@ function clamp(v, min, max) {
 }
 
 function opponentName() {
-  return mode === 'tournament' && opponent ? opponent.name : 'CPU';
+  return opponent ? opponent.name : 'CPU';
 }
 
 let lastDifficulty = 'medium';
+let daily = null;
+
+function applyCosmetics() {
+  const c = equippedColors();
+  player.color = c.paddle;
+  ball.skinColor = c.ball;
+}
+
+function clearModifiers() {
+  ball.wind = 0;
+  ball.gravityScale = 1;
+}
 
 function startGame(difficulty) {
   mode = 'quick';
   opponent = null;
   lastDifficulty = difficulty;
+  clearModifiers();
   cpu.setDifficulty(difficulty);
   score = new Score();
   ui.updateScore(score, score.servingSide);
   startServe();
+}
+
+function startDaily() {
+  mode = 'daily';
+  daily = dailyChallenge();
+  opponent = ROSTER[daily.opponentIndex];
+  cpu.setProfile(opponent);
+  ball.wind = daily.modifier.wind;
+  ball.gravityScale = daily.modifier.gravityScale;
+  score = new Score();
+  ui.updateScore(score, score.servingSide, opponent.name);
+  ui.showBanner(`Daily vs ${opponent.name}: ${daily.modifier.label}`, 0);
+  introTimer = 3;
+  state = 'intro';
 }
 
 const PAUSABLE = ['intro', 'serving', 'rally', 'replay', 'point-banner'];
@@ -112,6 +142,7 @@ function togglePause() {
       onRestart: () => {
         ui.hidePause();
         if (mode === 'tournament') startTournamentMatch();
+        else if (mode === 'daily') startDaily();
         else startGame(lastDifficulty);
       },
       onQuit: () => {
@@ -124,7 +155,10 @@ function togglePause() {
 
 function showMainMenu() {
   state = 'menu';
-  ui.showModeMenu(startGame, openLadder);
+  ui.showModeMenu(startGame, openLadder, {
+    onDaily: startDaily,
+    onCosmetics: applyCosmetics,
+  });
 }
 
 function openLadder() {
@@ -138,6 +172,7 @@ function openLadder() {
 
 function startTournamentMatch() {
   mode = 'tournament';
+  clearModifiers();
   opponent = ROSTER[loadRung()];
   cpu.setProfile(opponent);
   score = new Score();
@@ -148,20 +183,30 @@ function startTournamentMatch() {
 }
 
 function handleMatchOver(winner) {
-  const title = winner === PLAYER
+  const won = winner === PLAYER;
+  const title = won
     ? `You win!  ${score.get(PLAYER)}–${score.get(CPU)}`
     : `${opponentName()} wins!  ${score.get(CPU)}–${score.get(PLAYER)}`;
   sfx.applause();
+
+  const champion = mode === 'tournament' && won && loadRung() + 1 >= ROSTER.length;
+  recordGame({ won, shutout: won && score.get(CPU) === 0, champion });
+
+  if (mode === 'daily') {
+    if (won) recordDailyWin(todayStr());
+    ui.showGameOver(title, won ? 'Daily challenge complete!' : daily.modifier.label, 'Back to menu', showMainMenu);
+    return;
+  }
 
   if (mode !== 'tournament') {
     ui.showGameOver(title, '', 'Play again', showMainMenu);
     return;
   }
 
-  if (winner === PLAYER) {
+  if (won) {
     const newRung = loadRung() + 1;
     saveRung(newRung);
-    if (newRung >= ROSTER.length) {
+    if (champion) {
       fx.spawnConfetti();
       ui.showChampion(showMainMenu);
       return;
@@ -234,6 +279,7 @@ function serve() {
 
 function endRally({ winner, reason }) {
   score.add(winner);
+  recordPoint(winner === PLAYER, rally.hitCount);
   sfx.score();
   ui.updateScore(score, score.servingSide, opponentName());
   const who = winner === PLAYER ? 'Point: YOU' : `Point: ${opponentName()}`;
@@ -581,6 +627,7 @@ function frame(now) {
 // Debug/test handle (used by tests/balance.test.js and handy in devtools).
 window.__pickleball = { ball, player, cpu, getState: () => state, getScore: () => score };
 
+applyCosmetics();
 ui.updateScore(score, score.servingSide);
 ui.setMuteLabel(isMuted());
 ui.onMuteClick(() => {
