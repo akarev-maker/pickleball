@@ -20,9 +20,19 @@ export function setupCanvas(canvas, mode = 'top') {
   const availW = window.innerWidth;
   const totalW = COURT_W + MARGIN * 2;
   const totalL = COURT_L + MARGIN * 2;
-  const scale = Math.min(availH / totalL, availW / totalW);
-  const width = totalW * scale;
-  const height = totalL * scale;
+  // Top-down fits the court's aspect; the 3D view fills the whole viewport.
+  let scale;
+  let width;
+  let height;
+  if (mode === '3d') {
+    width = availW;
+    height = availH;
+    scale = availH / totalL;
+  } else {
+    scale = Math.min(availH / totalL, availW / totalW);
+    width = totalW * scale;
+    height = totalL * scale;
+  }
 
   canvas.width = width * dpr;
   canvas.height = height * dpr;
@@ -59,10 +69,10 @@ export function setupCanvas(canvas, mode = 'top') {
 // Ground-plane projection is a projective map, so straight lines stay
 // straight and the mouse inverse is exact.
 function perspectiveView(ctx, scale, width, height) {
-  const CAM_Y = COURT_L + 18; // camera position behind the baseline (ft)
+  const CAM_Y = COURT_L + 20; // camera position behind the baseline (ft)
   const CAM_H = 26; // camera height (ft)
-  const FK = 27 * scale; // focal constant: scaleAt(y) = FK / (CAM_Y - y)
-  const horizon = height * 0.16;
+  const FK = 29 * scale; // focal constant: scaleAt(y) = FK / (CAM_Y - y)
+  const horizon = height * 0.12;
 
   const scaleAt = (y) => FK / Math.max(CAM_Y - y, 4);
 
@@ -115,7 +125,7 @@ function quad(ctx, view, x1, y1, x2, y2) {
 export function drawCourt(ctx, view) {
   // Apron / backdrop
   if (view.mode === '3d') {
-    ctx.fillStyle = '#16211c'; // sky above the horizon
+    ctx.fillStyle = '#182720'; // night sky above the horizon
     ctx.fillRect(0, 0, view.width, view.horizon + 2);
     ctx.fillStyle = '#2e6b4f';
     ctx.fillRect(0, view.horizon + 2, view.width, view.height);

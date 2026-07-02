@@ -81,11 +81,11 @@ export class Cpu {
     } else {
       this.speedNow = 0;
     }
-    this.x = Math.max(-MARGIN + 1, Math.min(COURT_W + MARGIN - 1, this.x));
+    this.x = Math.max(-3, Math.min(COURT_W + 3, this.x));
     if (this.side === 'top') {
       this.y = Math.max(-MARGIN + 1, Math.min(NET_Y - 1.2, this.y));
     } else {
-      this.y = Math.max(NET_Y + 1.2, Math.min(COURT_L + MARGIN - 1, this.y));
+      this.y = Math.max(NET_Y + 1.2, Math.min(COURT_L + 3.5, this.y));
     }
   }
 

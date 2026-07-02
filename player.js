@@ -33,9 +33,10 @@ export class Player {
     this.speedNow = len > 0 ? SPEED : 0;
     this.x += dx * SPEED * dt;
     this.y += dy * SPEED * dt;
-    // Confined to own half plus the apron; can't cross the net.
-    this.x = Math.max(-MARGIN + 1, Math.min(COURT_W + MARGIN - 1, this.x));
-    this.y = Math.max(NET_Y + 1.2, Math.min(COURT_L + MARGIN - 1, this.y));
+    // Confined to own half plus a slim apron (stays in frame in both
+    // camera views); can't cross the net.
+    this.x = Math.max(-3, Math.min(COURT_W + 3, this.x));
+    this.y = Math.max(NET_Y + 1.2, Math.min(COURT_L + 3.5, this.y));
   }
 
   moveDir() {
