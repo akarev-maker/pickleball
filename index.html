@@ -12,10 +12,15 @@
     <div id="hud">
       <div id="score"></div>
       <div id="banner" class="hidden"></div>
+
       <div id="menu" class="overlay">
         <h1>Pickleball</h1>
         <p class="tagline">First to 11, win by 2. Mind the kitchen.</p>
-        <div class="difficulty">
+        <div class="modes">
+          <button id="mode-tournament">🏆 Tournament</button>
+          <button id="mode-quick">Quick Play</button>
+        </div>
+        <div class="difficulty hidden" id="difficulty-row">
           <button data-difficulty="easy">Easy</button>
           <button data-difficulty="medium">Medium</button>
           <button data-difficulty="hard">Hard</button>
@@ -25,16 +30,36 @@
           <p><strong>Aim:</strong> mouse crosshair — shots fly toward it</p>
           <p><strong>Power:</strong> hold mouse button / Space to charge</p>
           <p><strong>Dink:</strong> hold Shift when hitting</p>
-          <p><strong>Serve:</strong> Space</p>
+          <p><strong>Serve:</strong> Space &nbsp;·&nbsp; <strong>Mute:</strong> M</p>
           <p>You swing automatically when the ball is in reach.
              Charged shots are faster but riskier.</p>
         </div>
       </div>
+
+      <div id="ladder" class="overlay hidden">
+        <h1>Tournament</h1>
+        <p class="tagline">Climb all 8 rungs. Lose and you retry the rung.</p>
+        <div id="ladder-list"></div>
+        <div class="modes">
+          <button id="ladder-play"></button>
+          <button id="ladder-reset" class="secondary">Reset ladder</button>
+          <button id="ladder-back" class="secondary">Menu</button>
+        </div>
+      </div>
+
+      <div id="champion" class="overlay hidden">
+        <h1>🏆 Champion!</h1>
+        <p class="tagline">You climbed the whole ladder. The Wall crumbled.</p>
+        <button id="champion-restart">Back to menu</button>
+      </div>
+
       <div id="gameover" class="overlay hidden">
         <h1 id="gameover-title"></h1>
-        <button id="restart">Play again</button>
+        <p id="gameover-line" class="tagline"></p>
+        <button id="restart">Continue</button>
       </div>
     </div>
+    <button id="mute" title="Mute (M)">🔊</button>
   </main>
   <script type="module" src="game.js"></script>
 </body>

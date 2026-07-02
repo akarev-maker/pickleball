@@ -9,6 +9,7 @@ const DIR_KEYS = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 
 export async function runBotGame({
   difficulty = 'medium',
   profile = null,
+  tournament = false,
   alwaysCharge = false,
   maxSeconds = 600,
 } = {}) {
@@ -16,7 +17,12 @@ export async function runBotGame({
   await import('../game.js');
   const { ball, player, cpu, getState, getScore } = window.__pickleball;
 
-  dom.startGame(difficulty);
+  if (tournament) {
+    dom.elements['mode-tournament'].onclick();
+    dom.elements['ladder-play'].onclick();
+  } else {
+    dom.startGame(difficulty);
+  }
   if (profile) cpu.setProfile(profile);
 
   const held = new Set();

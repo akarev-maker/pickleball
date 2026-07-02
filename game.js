@@ -11,6 +11,10 @@ import { Ball } from './ball.js';
 import { Player } from './player.js';
 import { Cpu } from './cpu.js';
 import * as ui from './ui.js';
+import { ROSTER, loadRung, saveRung, resetLadder } from './ladder.js';
+import { initAudio, sfx, toggleMute, isMuted } from './audio.js';
+import { Fx } from './fx.js';
+import { ReplayRecorder } from './replay.js';
 
 const NET_HEIGHT = 3; // ft
 const BANNER_SECS = 2;
@@ -25,6 +29,9 @@ window.addEventListener('keydown', (e) => {
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
     e.preventDefault();
   }
+  initAudio();
+  if (e.code === 'KeyM') ui.setMuteLabel(toggleMute());
+  if (state === 'replay') replaySkip = true;
   keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
@@ -38,16 +45,25 @@ canvas.addEventListener('mousemove', (e) => {
   aim.y = clamp(c.y, 0.5, NET_Y - 1);
   aim.active = true;
 });
-canvas.addEventListener('mousedown', () => { mouseHeld = true; });
+canvas.addEventListener('mousedown', () => { initAudio(); mouseHeld = true; });
 window.addEventListener('mouseup', () => { mouseHeld = false; });
 
 const ball = new Ball();
 const player = new Player();
 const cpu = new Cpu();
+const fx = new Fx();
+const recorder = new ReplayRecorder();
 
 let state = 'menu';
 let score = new Score();
 let rally = null;
+let mode = 'quick'; // 'quick' | 'tournament'
+let opponent = null; // roster profile in tournament mode
+let introTimer = 0;
+let pendingResult = null;
+let replayClip = [];
+let replayIdx = 0;
+let replaySkip = false;
 let serveX = 0;
 let serveTimer = 0;
 let bannerTimer = 0;
@@ -64,11 +80,67 @@ function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
+function opponentName() {
+  return mode === 'tournament' && opponent ? opponent.name : 'CPU';
+}
+
 function startGame(difficulty) {
+  mode = 'quick';
+  opponent = null;
   cpu.setDifficulty(difficulty);
   score = new Score();
   ui.updateScore(score, score.servingSide);
   startServe();
+}
+
+function showMainMenu() {
+  state = 'menu';
+  ui.showModeMenu(startGame, openLadder);
+}
+
+function openLadder() {
+  state = 'menu';
+  ui.showLadder(ROSTER, loadRung(), {
+    onPlay: startTournamentMatch,
+    onReset: () => { resetLadder(); openLadder(); },
+    onBack: showMainMenu,
+  });
+}
+
+function startTournamentMatch() {
+  mode = 'tournament';
+  opponent = ROSTER[loadRung()];
+  cpu.setProfile(opponent);
+  score = new Score();
+  ui.updateScore(score, score.servingSide, opponent.name);
+  ui.showBanner(`Rung ${loadRung() + 1}: ${opponent.name} — ${opponent.tagline}`, 0);
+  introTimer = 2.5;
+  state = 'intro';
+}
+
+function handleMatchOver(winner) {
+  const title = winner === PLAYER
+    ? `You win!  ${score.get(PLAYER)}–${score.get(CPU)}`
+    : `${opponentName()} wins!  ${score.get(CPU)}–${score.get(PLAYER)}`;
+  sfx.applause();
+
+  if (mode !== 'tournament') {
+    ui.showGameOver(title, '', 'Play again', showMainMenu);
+    return;
+  }
+
+  if (winner === PLAYER) {
+    const newRung = loadRung() + 1;
+    saveRung(newRung);
+    if (newRung >= ROSTER.length) {
+      fx.spawnConfetti();
+      ui.showChampion(showMainMenu);
+      return;
+    }
+    ui.showGameOver(title, opponent.loseLine, 'Back to ladder', openLadder);
+  } else {
+    ui.showGameOver(title, opponent.winLine, 'Back to ladder', openLadder);
+  }
 }
 
 function startServe() {
@@ -102,6 +174,8 @@ function serve() {
   const server = score.servingSide;
   rally = new Rally(server);
   rally.recordHit(server, { volley: false, inKitchen: false });
+  recorder.clear();
+  sfx.paddle(0.4);
   ui.hideBanner();
 
   if (server === PLAYER) {
@@ -131,8 +205,9 @@ function serve() {
 
 function endRally({ winner, reason }) {
   score.add(winner);
-  ui.updateScore(score, score.servingSide);
-  const who = winner === PLAYER ? 'Point: YOU' : 'Point: CPU';
+  sfx.score();
+  ui.updateScore(score, score.servingSide, opponentName());
+  const who = winner === PLAYER ? 'Point: YOU' : `Point: ${opponentName()}`;
   ui.showBanner(`${reason}  ${who}`, 0);
   bannerTimer = BANNER_SECS;
   state = 'point-banner';
@@ -156,6 +231,7 @@ function playerShot() {
         : rand(KITCHEN_TOP + 1.5, NET_Y - 1),
       apexZ: 4.5,
       power: 0,
+      dink: true,
     };
   }
 
@@ -233,6 +309,8 @@ function handleHits() {
     if (result) return result;
     const shot = playerShot();
     applyStress(shot, player, 1.2 + 0.6 * shot.power);
+    if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
+    if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
     ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1);
     netRebound = false;
     return null;
@@ -247,6 +325,7 @@ function handleHits() {
     if (result) return result;
     const shot = cpu.chooseShot(ball, player);
     applyStress(shot, cpu, cpu.difficulty.aimError * 0.5);
+    sfx.paddle(0.25);
     ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1);
     netRebound = false;
     return null;
@@ -280,6 +359,11 @@ function handleNetCrossing() {
   const zAtNet = prevBallZ + (ball.z - prevBallZ) * f;
   if (zAtNet >= NET_HEIGHT) return;
 
+  sfx.net();
+  sfx.ooh();
+  fx.spawnNet(ball.x, NET_Y);
+  fx.shake(0.35);
+
   if (zAtNet > NET_HEIGHT - 0.45 && Math.random() < 0.35) {
     // Net cord: the ball clips the tape and dribbles over.
     ball.vy *= 0.3;
@@ -308,6 +392,8 @@ function updateRally(dt) {
     prevBallZ = ball.z;
     const event = ball.update(dt);
     if (event === 'bounce') {
+      sfx.bounce();
+      fx.spawnBounce(ball.x, ball.y);
       result = handleBounce();
     } else {
       handleNetCrossing();
@@ -318,9 +404,24 @@ function updateRally(dt) {
     }
   }
 
+  fx.trail(ball);
+  recorder.record({
+    bx: ball.x, by: ball.y, bz: ball.z,
+    px: player.x, py: player.y, cx: cpu.x, cy: cpu.y,
+  });
+
   if (result) {
     if (netRebound) result.reason = 'Netted!';
-    endRally(result);
+    fx.ring(ball.x, ball.y);
+    pendingResult = result;
+    replayClip = recorder.clip(1.2);
+    if (replayClip.length >= 30) {
+      replayIdx = 0;
+      replaySkip = false;
+      state = 'replay';
+    } else {
+      endRally(pendingResult);
+    }
   }
 }
 
@@ -359,13 +460,32 @@ function drawChargeMeter(ctx) {
   }
 }
 
+function drawLetterbox(ctx) {
+  const barH = view.height * 0.09;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+  ctx.fillRect(0, 0, view.width, barH);
+  ctx.fillRect(0, view.height - barH, view.width, barH);
+  ctx.fillStyle = '#f2f5f3';
+  ctx.font = `600 ${Math.round(barH * 0.5)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('● REPLAY', view.width / 2, barH * 0.65);
+}
+
 function draw() {
-  drawCourt(view.ctx, view);
-  cpu.draw(view.ctx, view);
-  player.draw(view.ctx, view);
-  if (state !== 'menu') ball.draw(view.ctx, view);
-  if ((state === 'rally' || state === 'serving') && aim.active) drawCrosshair(view.ctx);
-  if (charge > 0) drawChargeMeter(view.ctx);
+  const ctx = view.ctx;
+  const { ox, oy } = fx.offsetPx(view.scale);
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawCourt(ctx, view);
+  fx.drawUnder(ctx, view);
+  cpu.draw(ctx, view);
+  player.draw(ctx, view);
+  if (state !== 'menu') ball.draw(ctx, view);
+  fx.drawOver(ctx, view);
+  if ((state === 'rally' || state === 'serving') && aim.active) drawCrosshair(ctx);
+  if (charge > 0) drawChargeMeter(ctx);
+  ctx.restore();
+  if (state === 'replay') drawLetterbox(ctx);
 }
 
 let lastTime = performance.now();
@@ -373,7 +493,10 @@ function frame(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
-  if (state === 'serving') {
+  if (state === 'intro') {
+    introTimer -= dt;
+    if (introTimer <= 0) startServe();
+  } else if (state === 'serving') {
     if (score.servingSide === PLAYER) {
       if (keys.has('Space')) serve();
     } else {
@@ -386,31 +509,36 @@ function frame(now) {
     const charging = keys.has('Space') || mouseHeld;
     charge = charging ? Math.min(1, charge + dt / 0.8) : Math.max(0, charge - dt * 0.5);
     updateRally(dt);
+  } else if (state === 'replay') {
+    replayIdx += dt * 60 * 0.4; // 40% speed
+    const f = replayClip[Math.min(Math.floor(replayIdx), replayClip.length - 1)];
+    ball.x = f.bx; ball.y = f.by; ball.z = f.bz;
+    ball.inFlight = false; // suppress the landing marker during playback
+    player.x = f.px; player.y = f.py;
+    cpu.x = f.cx; cpu.y = f.cy;
+    if (replaySkip || replayIdx >= replayClip.length) {
+      endRally(pendingResult);
+    }
   } else if (state === 'point-banner') {
     player.update(dt, keys);
-    ball.update(dt); // let the ball settle visually
     bannerTimer -= dt;
     if (bannerTimer <= 0) {
       ui.hideBanner();
       const winner = score.winner();
       if (winner) {
         state = 'game-over';
-        const title = winner === PLAYER ? 'You win!' : 'CPU wins!';
-        ui.showGameOver(
-          `${title}  ${score.get(PLAYER)}–${score.get(CPU)}`,
-          () => { state = 'menu'; ui.showMenu(startGame); },
-        );
+        handleMatchOver(winner);
       } else {
         startServe();
       }
     }
   }
 
-  if (keys.has('KeyR') && (state === 'rally' || state === 'serving')) {
+  fx.update(dt);
+
+  if (keys.has('KeyR') && (state === 'rally' || state === 'serving' || state === 'intro')) {
     keys.delete('KeyR');
-    state = 'menu';
-    ui.hideOverlays();
-    ui.showMenu(startGame);
+    showMainMenu();
   }
 
   draw();
@@ -421,12 +549,17 @@ function frame(now) {
 window.__pickleball = { ball, player, cpu, getState: () => state, getScore: () => score };
 
 ui.updateScore(score, score.servingSide);
+ui.setMuteLabel(isMuted());
+ui.onMuteClick(() => {
+  initAudio();
+  ui.setMuteLabel(toggleMute());
+});
 if (window.location?.hash === '#demo') {
   // Dev/demo mode: start immediately on medium and auto-serve.
   ui.hideOverlays();
   keys.add('Space');
   startGame('medium');
 } else {
-  ui.showMenu(startGame);
+  showMainMenu();
 }
 requestAnimationFrame(frame);

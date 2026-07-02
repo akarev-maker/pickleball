@@ -30,9 +30,23 @@ function makeElement(id) {
 // handles for driving the game.
 export function installDom() {
   const elements = {};
-  for (const id of ['game', 'score', 'banner', 'menu', 'gameover', 'gameover-title', 'restart']) {
+  const ids = [
+    'game', 'score', 'banner', 'menu', 'difficulty-row',
+    'mode-quick', 'mode-tournament',
+    'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',
+    'champion', 'champion-restart',
+    'gameover', 'gameover-title', 'gameover-line', 'restart', 'mute',
+  ];
+  for (const id of ids) {
     elements[id] = makeElement(id);
   }
+
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => (storage.has(k) ? storage.get(k) : null),
+    setItem: (k, v) => storage.set(k, String(v)),
+    removeItem: (k) => storage.delete(k),
+  };
 
   // Difficulty buttons must exist before game.js is imported, since
   // showMenu wires their onclick handlers at import time.
