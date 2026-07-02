@@ -60,7 +60,9 @@ window.addEventListener('keyup', (e) => {
 // Mouse: crosshair aiming + hold-to-charge power.
 const aim = { x: CENTER_X, y: 9, active: false };
 let mouseHeld = false;
+let touchMode = false;
 canvas.addEventListener('mousemove', (e) => {
+  if (touchMode) return; // touch devices emit fake mousemoves; steer instead
   const c = view.toCourt(e.offsetX, e.offsetY);
   aim.x = clamp(c.x, 0.5, COURT_W - 0.5);
   aim.y = clamp(c.y, 0.5, NET_Y - 1);
@@ -71,6 +73,65 @@ window.addEventListener('mouseup', () => {
   mouseHeld = false;
   queueSwing('mouse');
 });
+
+// --- Touch controls: left joystick moves (and steers shots), right-hand
+// buttons are the four strokes with the same hold-to-charge scheme. ---
+function enableTouch() {
+  if (touchMode) return;
+  touchMode = true;
+  aim.active = false;
+  initAudio();
+  document.getElementById('touch').classList.remove('hidden');
+
+  for (const btn of document.getElementById('touch').querySelectorAll('button[data-swing]')) {
+    const code = btn.dataset.swing;
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      keys.add(code);
+    }, { passive: false });
+    const release = (e) => {
+      e.preventDefault();
+      keys.delete(code);
+      queueSwing(code);
+    };
+    btn.addEventListener('touchend', release, { passive: false });
+    btn.addEventListener('touchcancel', release, { passive: false });
+  }
+
+  const pad = document.getElementById('joystick');
+  const stick = document.getElementById('stick');
+  const DIRS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+  const applyStick = (dx, dy) => {
+    for (const d of DIRS) keys.delete(d);
+    if (dx < -0.35) keys.add('ArrowLeft');
+    if (dx > 0.35) keys.add('ArrowRight');
+    if (dy < -0.35) keys.add('ArrowUp');
+    if (dy > 0.35) keys.add('ArrowDown');
+    stick.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
+  };
+  const onStick = (e) => {
+    e.preventDefault();
+    const t = e.targetTouches[0];
+    if (!t) return;
+    const r = pad.getBoundingClientRect();
+    const dx = clamp((t.clientX - (r.left + r.width / 2)) / (r.width / 2), -1, 1);
+    const dy = clamp((t.clientY - (r.top + r.height / 2)) / (r.height / 2), -1, 1);
+    applyStick(dx, dy);
+  };
+  pad.addEventListener('touchstart', onStick, { passive: false });
+  pad.addEventListener('touchmove', onStick, { passive: false });
+  const endStick = (e) => {
+    e.preventDefault();
+    applyStick(0, 0);
+  };
+  pad.addEventListener('touchend', endStick, { passive: false });
+  pad.addEventListener('touchcancel', endStick, { passive: false });
+}
+
+window.addEventListener('touchstart', () => {
+  enableTouch();
+  if (state === 'replay') replaySkip = true;
+}, { passive: true });
 
 const ball = new Ball();
 const player = new Player();
@@ -302,7 +363,7 @@ function startServe() {
     player.y = COURT_L + 1.5;
     cpu.reset();
     if (variant !== 'doubles') cpu.x = variant === 'skinny' ? serveX : COURT_W - serveX;
-    ui.showBanner('Your serve — press SPACE (hold ←/→ to aim)', 0);
+    ui.showBanner(touchMode ? 'Your serve — tap DRIVE' : 'Your serve — press SPACE (hold ←/→ to aim)', 0);
   } else {
     serveX = variant === 'skinny' ? CENTER_X / 2 : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
     cpu.reset();
@@ -832,14 +893,15 @@ ui.onMuteClick(() => {
   initAudio();
   ui.setMuteLabel(toggleMute());
 });
-const hash = window.location?.hash;
-if (hash === '#demo' || hash === '#demo3d') {
+const hash = window.location?.hash || '';
+if (hash.startsWith('#demo')) {
   // Dev/demo mode: start immediately on medium and auto-serve.
-  if (hash === '#demo3d' && viewMode !== '3d') toggleView();
+  if (hash.includes('3d') && viewMode !== '3d') toggleView();
   ui.hideOverlays();
   keys.add('Space');
   startGame('medium');
 } else {
   showMainMenu();
 }
+if (hash.includes('touch')) enableTouch(); // dev: preview the touch UI
 requestAnimationFrame(frame);

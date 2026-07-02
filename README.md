@@ -39,6 +39,12 @@ or `npm start`, which runs the same command.
 
 ## Controls
 
+**Touch devices:** controls appear on first touch — left joystick moves (and
+steers your shots), right-hand buttons are the four strokes (DRIVE / DINK /
+TOP / SLICE), each with the same hold-to-charge, release-to-swing timing.
+To play on your phone, serve over your network (`python3 -m http.server
+8000`) and open `http://<your-computer-ip>:8000`.
+
 | Input | Action |
 |-------|--------|
 | Arrow keys / WASD | Move |

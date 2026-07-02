@@ -10,6 +10,8 @@ html, body {
   font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
   color: #f2f5f3;
   overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 #stage {
@@ -278,6 +280,69 @@ button.secondary:hover {
 
 .locker-item.equipped {
   outline: 2px solid #b8e986;
+}
+
+#touch {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#joystick {
+  position: absolute;
+  left: 20px;
+  bottom: 24px;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  pointer-events: auto;
+}
+
+#stick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(184, 233, 134, 0.5);
+}
+
+#touch-buttons {
+  position: absolute;
+  right: 16px;
+  bottom: 24px;
+  display: grid;
+  grid-template-columns: 74px 74px;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.swing-btn {
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(184, 233, 134, 0.28);
+  border: 1.5px solid rgba(184, 233, 134, 0.6);
+  color: #eaf7dd;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.swing-btn.big {
+  background: rgba(184, 233, 134, 0.45);
+}
+
+.swing-btn:active {
+  background: rgba(184, 233, 134, 0.75);
+  color: #16211c;
 }
 
 .hidden {

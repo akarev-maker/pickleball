@@ -39,6 +39,7 @@ export function installDom() {
     'menu-daily', 'menu-stats', 'menu-locker',
     'stats', 'stats-list', 'stats-back', 'locker', 'locker-list', 'locker-back',
     'gameover', 'gameover-title', 'gameover-line', 'restart', 'mute',
+    'touch', 'joystick', 'stick',
   ];
   for (const id of ids) {
     elements[id] = makeElement(id);

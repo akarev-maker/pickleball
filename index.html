@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Pickleball</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -92,6 +92,15 @@
       </div>
     </div>
     <button id="mute" title="Mute (M)">🔊</button>
+    <div id="touch" class="hidden">
+      <div id="joystick"><div id="stick"></div></div>
+      <div id="touch-buttons">
+        <button class="swing-btn" data-swing="KeyE">TOP</button>
+        <button class="swing-btn" data-swing="KeyQ">SLICE</button>
+        <button class="swing-btn" data-swing="ShiftLeft">DINK</button>
+        <button class="swing-btn big" data-swing="Space">DRIVE</button>
+      </div>
+    </div>
   </main>
   <script type="module" src="game.js"></script>
 </body>
