@@ -6,9 +6,13 @@ import { installDom } from './dom-stub.js';
 
 const difficulty = process.argv[2] || 'medium';
 
+// Pass 'charge' as the second arg to make the bot hold Space during rallies
+// (full-power shots); default is neutral shots.
+const alwaysCharge = process.argv[3] === 'charge';
+
 const dom = installDom();
 await import('../game.js');
-const { ball, player } = window.__pickleball;
+const { ball, player, getState } = window.__pickleball;
 
 dom.startGame(difficulty);
 dom.keyDown('Space');
@@ -51,6 +55,13 @@ const MAX_FRAMES = 60 * 600; // 10 simulated minutes
 
 while (frames < MAX_FRAMES) {
   botThink();
+  // Hold Space only to serve (unless testing always-charged play).
+  if (getState() === 'serving' || alwaysCharge) {
+    if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); }
+  } else if (held.has('Space')) {
+    dom.keyUp('Space');
+    held.delete('Space');
+  }
   time += FRAME;
   dom.step(time);
   frames++;

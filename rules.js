@@ -13,6 +13,9 @@ export const NET_Y = 22;
 export const KITCHEN_TOP = 15;
 export const KITCHEN_BOTTOM = 29;
 export const CENTER_X = COURT_W / 2;
+// Roughly the ball's radius: a ball whose center lands within this distance
+// of a boundary line is still touching it, and a line ball is in.
+export const LINE_TOL = 0.35;
 
 export function other(side) {
   return side === PLAYER ? CPU : PLAYER;
@@ -90,13 +93,14 @@ export class Rally {
 // A serve must land diagonally: in the opposite absolute x-half from where it
 // was struck, past the kitchen, inside the receiver's court.
 export function isValidServeLanding(server, serveX, landX, landY) {
-  if (landX <= 0 || landX >= COURT_W) return false;
+  if (landX <= -LINE_TOL || landX >= COURT_W + LINE_TOL) return false;
   const servedFromRight = serveX > CENTER_X;
   const inDiagonalHalf = servedFromRight ? landX < CENTER_X : landX > CENTER_X;
   if (!inDiagonalHalf) return false;
   if (server === PLAYER) {
     // Lands in the top service area: between baseline and kitchen line.
-    return landY > 0 && landY < KITCHEN_TOP;
+    // Baseline is a line ball (in); the kitchen line is a fault on serves.
+    return landY > -LINE_TOL && landY < KITCHEN_TOP;
   }
-  return landY > KITCHEN_BOTTOM && landY < COURT_L;
+  return landY > KITCHEN_BOTTOM && landY < COURT_L + LINE_TOL;
 }

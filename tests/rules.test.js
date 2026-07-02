@@ -1,5 +1,5 @@
 import {
-  PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen,
+  PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen, LINE_TOL,
 } from '../rules.js';
 
 let passed = 0;
@@ -178,6 +178,14 @@ test('player serve from right half must land in top-left service court', () => {
 test('player serve from left half must land in top-right service court', () => {
   assert(isValidServeLanding(PLAYER, 5, 15, 8));
   assert(!isValidServeLanding(PLAYER, 5, 5, 8));
+});
+
+test('a serve touching an outer line is in', () => {
+  assert(LINE_TOL > 0, 'LINE_TOL must exist');
+  assert(isValidServeLanding(PLAYER, 15, 5, -0.2), 'ball center just past the baseline still touches it');
+  assert(isValidServeLanding(PLAYER, 15, -0.2, 8), 'ball center just past the sideline still touches it');
+  assert(!isValidServeLanding(PLAYER, 15, 5, -0.6), 'clearly past the line is out');
+  assert(isValidServeLanding(CPU, 5, 15, 44.2), 'cpu serve touching the far baseline is in');
 });
 
 test('cpu serve from left half must land in bottom-right service court', () => {

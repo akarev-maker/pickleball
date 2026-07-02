@@ -2,7 +2,7 @@
 // (serving | game-over) → menu.
 
 import {
-  PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen,
+  PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen, LINE_TOL,
 } from './rules.js';
 import {
   setupCanvas, drawCourt, COURT_W, COURT_L, NET_Y, KITCHEN_TOP, CENTER_X,
@@ -29,6 +29,18 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => keys.delete(e.code));
 
+// Mouse: crosshair aiming + hold-to-charge power.
+const aim = { x: CENTER_X, y: 9, active: false };
+let mouseHeld = false;
+canvas.addEventListener('mousemove', (e) => {
+  const c = view.toCourt(e.offsetX, e.offsetY);
+  aim.x = clamp(c.x, 0.5, COURT_W - 0.5);
+  aim.y = clamp(c.y, 0.5, NET_Y - 1);
+  aim.active = true;
+});
+canvas.addEventListener('mousedown', () => { mouseHeld = true; });
+window.addEventListener('mouseup', () => { mouseHeld = false; });
+
 const ball = new Ball();
 const player = new Player();
 const cpu = new Cpu();
@@ -41,6 +53,8 @@ let serveTimer = 0;
 let bannerTimer = 0;
 let prevBallY = 0;
 let prevBallZ = 0;
+let charge = 0; // 0..1 shot power, held Space / mouse button charges it
+let netRebound = false; // ball fell back off the net; label the point 'Netted!'
 
 function rand(min, max) {
   return min + Math.random() * (max - min);
@@ -91,11 +105,19 @@ function serve() {
   ui.hideBanner();
 
   if (server === PLAYER) {
-    let aim = 0;
-    if (keys.has('ArrowLeft') || keys.has('KeyA')) aim -= 1;
-    if (keys.has('ArrowRight') || keys.has('KeyD')) aim += 1;
-    const tx = clamp(COURT_W - serveX + aim * 3 + rand(-1.2, 1.2), 1, COURT_W - 1);
-    ball.launchTo(tx, rand(6, 12), rand(7.5, 9));
+    let tx;
+    let ty;
+    if (aim.active) {
+      tx = clamp(aim.x + rand(-1, 1), 1, COURT_W - 1);
+      ty = clamp(aim.y + rand(-1, 1), 1, KITCHEN_TOP - 0.5);
+    } else {
+      let steer = 0;
+      if (keys.has('ArrowLeft') || keys.has('KeyA')) steer -= 1;
+      if (keys.has('ArrowRight') || keys.has('KeyD')) steer += 1;
+      tx = clamp(COURT_W - serveX + steer * 3 + rand(-1.2, 1.2), 1, COURT_W - 1);
+      ty = rand(6, 12);
+    }
+    ball.launchTo(tx, ty, rand(7.5, 9));
   } else {
     const err = cpu.difficulty.aimError;
     const tx = clamp(COURT_W - serveX + rand(-err, err), 1, COURT_W - 1);
@@ -103,6 +125,7 @@ function serve() {
   }
   prevBallY = ball.y;
   prevBallZ = ball.z;
+  netRebound = false;
   state = 'rally';
 }
 
@@ -116,22 +139,37 @@ function endRally({ winner, reason }) {
 }
 
 function playerShot() {
-  const dir = player.moveDir();
   const dink = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  const power = charge;
+  charge = 0;
+
   if (dink) {
-    // Drop it into the CPU's kitchen.
+    // Drop it into the CPU's kitchen; the crosshair picks the spot along it.
+    const dir = player.moveDir();
+    const tx = aim.active ? aim.x : clamp(ball.x + dir.dx * 5, 1, COURT_W - 1);
     return {
-      tx: clamp(ball.x + dir.dx * 5 + rand(-1, 1), 1, COURT_W - 1),
-      ty: rand(KITCHEN_TOP + 1.5, NET_Y - 1),
+      tx: clamp(tx + rand(-1, 1), 1, COURT_W - 1),
+      ty: aim.active
+        ? clamp(aim.y, KITCHEN_TOP + 1, NET_Y - 1)
+        : rand(KITCHEN_TOP + 1.5, NET_Y - 1),
       apexZ: 4.5,
+      power: 0,
     };
   }
-  // Flat-ish drives: a lower apex means a shorter flight, so good placement
-  // can actually beat the defender to the spot.
+
+  // Drives go where the crosshair points (keyboard steering as fallback).
+  // More power flattens the arc: faster and harder to chase, but riskier —
+  // extra scatter, and a flat ball can find the net.
+  const apexZ = 5.4 - 1.8 * power + rand(-0.3, 0.3);
+  if (aim.active) {
+    return { tx: aim.x, ty: aim.y, apexZ, power };
+  }
+  const dir = player.moveDir();
   return {
     tx: clamp(CENTER_X + dir.dx * 7 + rand(-1.5, 1.5), 1, COURT_W - 1),
     ty: clamp(9 + dir.dy * 6 + rand(-1.5, 1.5), 2, NET_Y - 2),
-    apexZ: rand(4.3, 5.3),
+    apexZ,
+    power,
   };
 }
 
@@ -181,18 +219,22 @@ function ballIsPlayable() {
 
 function handleHits() {
   const playable = ballIsPlayable();
-  // Player hits balls coming toward them (vy > 0), CPU the reverse.
-  if (ball.vy > 0 && playable && player.canReach(ball) && !mustLetBounce()) {
+  // Player hits balls coming toward them (vy > 0), CPU the reverse; nobody
+  // may hit their own shot twice (e.g. after it rebounds off the net).
+  if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER
+      && player.canReach(ball) && !mustLetBounce()) {
     const volley = !rally.bouncedSinceLastHit;
     const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
     if (result) return result;
     const shot = playerShot();
-    applyStress(shot, player, 1.2);
+    applyStress(shot, player, 1.2 + 0.6 * shot.power);
     ball.launchTo(shot.tx, shot.ty, shot.apexZ);
+    netRebound = false;
     return null;
   }
 
-  if (ball.vy < 0 && playable && cpu.canReach(ball) && !mustLetBounce()) {
+  if (ball.vy < 0 && playable && rally.lastHitter !== CPU
+      && cpu.canReach(ball) && !mustLetBounce()) {
     const volley = !rally.bouncedSinceLastHit;
     // Medium and hard CPUs know better than to volley from the kitchen.
     if (volley && hitterInKitchen(cpu) && cpu.difficulty.aimError < 4) return null;
@@ -201,6 +243,7 @@ function handleHits() {
     const shot = cpu.chooseShot(ball, player);
     applyStress(shot, cpu, cpu.difficulty.aimError * 0.5);
     ball.launchTo(shot.tx, shot.ty, shot.apexZ);
+    netRebound = false;
     return null;
   }
 
@@ -213,22 +256,39 @@ function handleBounce() {
     return { winner: other(rally.server), reason: 'Service fault!' };
   }
   const isFirstBounceSinceHit = !rally.bouncedSinceLastHit;
-  const out = ball.x < 0 || ball.x > COURT_W || ball.y < 0 || ball.y > COURT_L;
+  // A ball touching the line is in.
+  const out = ball.x < -LINE_TOL || ball.x > COURT_W + LINE_TOL
+    || ball.y < -LINE_TOL || ball.y > COURT_L + LINE_TOL;
   if (isFirstBounceSinceHit && out) {
     return rally.recordOut(rally.lastHitter);
   }
   return rally.recordBounce(ball.y < NET_Y ? CPU : PLAYER);
 }
 
-function checkNet() {
+// The net is physical: a ball clipping the tape may tumble over and stay
+// live (net cord); a ball hit squarely into the net drops back on the
+// hitter's side, where it dies and the normal rules award the point.
+function handleNetCrossing() {
   const crossed = (prevBallY - NET_Y) * (ball.y - NET_Y) < 0;
-  if (!crossed) return null;
+  if (!crossed) return;
   const f = (NET_Y - prevBallY) / (ball.y - prevBallY);
   const zAtNet = prevBallZ + (ball.z - prevBallZ) * f;
-  if (zAtNet < NET_HEIGHT) {
-    return { winner: other(rally.lastHitter), reason: 'Into the net!' };
+  if (zAtNet >= NET_HEIGHT) return;
+
+  if (zAtNet > NET_HEIGHT - 0.45 && Math.random() < 0.5) {
+    // Net cord: the ball clips the tape and dribbles over.
+    ball.vy *= 0.3;
+    ball.vx *= 0.5;
+    ball.vz = Math.min(ball.vz, 1);
+    return;
   }
-  return null;
+
+  // Into the net: rebound to the hitter's side and drop.
+  ball.y = NET_Y + (prevBallY > NET_Y ? 0.4 : -0.4);
+  ball.vy = -ball.vy * 0.12;
+  ball.vx *= 0.3;
+  ball.vz = Math.min(ball.vz, 0);
+  netRebound = true;
 }
 
 function updateRally(dt) {
@@ -244,7 +304,7 @@ function updateRally(dt) {
     if (event === 'bounce') {
       result = handleBounce();
     } else {
-      result = checkNet();
+      handleNetCrossing();
     }
     // A ball that rolled dead: whichever side it died on failed to return it.
     if (!result && !ball.inFlight) {
@@ -252,7 +312,40 @@ function updateRally(dt) {
     }
   }
 
-  if (result) endRally(result);
+  if (result) {
+    if (netRebound) result.reason = 'Netted!';
+    endRally(result);
+  }
+}
+
+function drawCrosshair(ctx) {
+  const p = view.toPx(aim.x, aim.y);
+  const r = view.scale * 0.5;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
+  ctx.moveTo(p.px - r * 1.6, p.py);
+  ctx.lineTo(p.px - r * 0.6, p.py);
+  ctx.moveTo(p.px + r * 0.6, p.py);
+  ctx.lineTo(p.px + r * 1.6, p.py);
+  ctx.moveTo(p.px, p.py - r * 1.6);
+  ctx.lineTo(p.px, p.py - r * 0.6);
+  ctx.moveTo(p.px, p.py + r * 0.6);
+  ctx.lineTo(p.px, p.py + r * 1.6);
+  ctx.stroke();
+}
+
+function drawChargeMeter(ctx) {
+  const p = view.toPx(player.x, player.y);
+  const w = view.scale * 2.4;
+  const h = view.scale * 0.35;
+  const x = p.px - w / 2;
+  const y = p.py + view.scale * 1.3;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = charge < 0.7 ? '#b8e986' : '#ff8a5e';
+  ctx.fillRect(x, y, w * charge, h);
 }
 
 function draw() {
@@ -260,6 +353,8 @@ function draw() {
   cpu.draw(view.ctx, view);
   player.draw(view.ctx, view);
   if (state !== 'menu') ball.draw(view.ctx, view);
+  if ((state === 'rally' || state === 'serving') && aim.active) drawCrosshair(view.ctx);
+  if (charge > 0) drawChargeMeter(view.ctx);
 }
 
 let lastTime = performance.now();
@@ -277,6 +372,8 @@ function frame(now) {
       if (serveTimer <= 0) serve();
     }
   } else if (state === 'rally') {
+    const charging = keys.has('Space') || mouseHeld;
+    charge = charging ? Math.min(1, charge + dt / 0.8) : Math.max(0, charge - dt * 0.5);
     updateRally(dt);
   } else if (state === 'point-banner') {
     player.update(dt, keys);

@@ -18,15 +18,19 @@ or `npm start`, which runs the same command.
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
-| Arrow keys / WASD | Move (your movement direction also steers your shots) |
-| Space | Serve (hold ← / → while serving to aim) |
+| Input | Action |
+|-------|--------|
+| Arrow keys / WASD | Move |
+| Mouse | Aim — the crosshair is where your shots (and serves) go |
+| Hold mouse button / Space | Charge power: flatter, faster, riskier shots |
 | Shift (held at contact) | Dink — a soft drop shot into the opponent's kitchen |
+| Space | Serve |
 | R | Quit to menu |
 
-You swing automatically whenever the ball is within reach — position and
-movement are the whole game.
+You swing automatically whenever the ball is within reach. Clean, planted
+hits go where you aim; hits at full stretch or on the run scatter. The net is
+physical: tape clips can tumble over and stay live, netted balls drop back
+and cost you the point. Balls touching a line are in.
 
 ## Rules enforced
 

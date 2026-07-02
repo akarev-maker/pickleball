@@ -19,6 +19,7 @@ function makeElement(id) {
     width: 0,
     height: 0,
     getContext: () => ctxStub,
+    addEventListener: noop,
     querySelectorAll: () => el.buttons || [],
     buttons: null,
   };

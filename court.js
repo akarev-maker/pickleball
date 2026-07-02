@@ -35,6 +35,9 @@ export function setupCanvas(canvas) {
     toPx(x, y) {
       return { px: (x + MARGIN) * scale, py: (y + MARGIN) * scale };
     },
+    toCourt(px, py) {
+      return { x: px / scale - MARGIN, y: py / scale - MARGIN };
+    },
   };
 }
 
