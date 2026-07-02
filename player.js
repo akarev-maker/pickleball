@@ -56,17 +56,23 @@ export class Player {
 // facing: -1 draws the paddle above (toward the net for the player),
 // +1 below (toward the net for the CPU).
 export function drawFigure(ctx, view, x, y, color, facing) {
-  const { scale } = view;
+  const scale = view.scaleAt(y);
   const p = view.toPx(x, y);
+  // In the 3D view the body stands on the court instead of lying on it.
+  const lift = view.mode === '3d' ? scale * 1.1 : 0;
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
   ctx.beginPath();
-  ctx.ellipse(p.px, p.py + scale * 0.35, scale * 0.75, scale * 0.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(p.px, p.py + (lift ? 0 : scale * 0.35), scale * 0.75, scale * 0.3, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(p.px, p.py, scale * 0.8, 0, Math.PI * 2);
+  if (lift) {
+    ctx.ellipse(p.px, p.py - lift, scale * 0.8, scale * 1.1, 0, 0, Math.PI * 2);
+  } else {
+    ctx.arc(p.px, p.py, scale * 0.8, 0, Math.PI * 2);
+  }
   ctx.fill();
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.lineWidth = 2;
@@ -74,6 +80,6 @@ export function drawFigure(ctx, view, x, y, color, facing) {
 
   ctx.fillStyle = '#3a2c1e';
   ctx.beginPath();
-  ctx.arc(p.px + scale * 0.65, p.py + facing * scale * 0.55, scale * 0.32, 0, Math.PI * 2);
+  ctx.arc(p.px + scale * 0.65, p.py - lift + facing * scale * 0.55, scale * 0.32, 0, Math.PI * 2);
   ctx.fill();
 }

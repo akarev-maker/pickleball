@@ -106,38 +106,39 @@ export class Fx {
 
   // Trail + rings: under the entities.
   drawUnder(ctx, view) {
-    const { scale } = view;
     for (const t of this.trailPoints) {
       const p = view.toPx(t.x, t.y);
+      const s = view.scaleAt(t.y);
       const alpha = 0.35 * (t.life / t.maxLife);
       ctx.fillStyle = `rgba(243,255,78,${alpha.toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(p.px, p.py - t.z * scale * 0.7, scale * 0.22 * (t.life / t.maxLife + 0.4), 0, Math.PI * 2);
+      ctx.arc(p.px, p.py - view.zOffset(t.y, t.z), s * 0.22 * (t.life / t.maxLife + 0.4), 0, Math.PI * 2);
       ctx.fill();
     }
     for (const r of this.rings) {
       const p = view.toPx(r.x, r.y);
+      const s = view.scaleAt(r.y);
       ctx.strokeStyle = `rgba(255,255,255,${(0.8 * (r.life / r.maxLife)).toFixed(3)})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(p.px, p.py, r.r * scale, 0, Math.PI * 2);
+      ctx.ellipse(p.px, p.py, r.r * s, r.r * s * (view.mode === '3d' ? 0.45 : 1), 0, 0, Math.PI * 2);
       ctx.stroke();
     }
   }
 
   // Particles: over the entities.
   drawOver(ctx, view) {
-    const { scale } = view;
     for (const p of this.particles) {
       const px = view.toPx(p.x, p.y);
+      const s = view.scaleAt(p.y);
       const alpha = Math.max(0, p.life / p.maxLife);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
       if (p.confetti) {
-        ctx.fillRect(px.px, px.py - p.z * scale * 0.7, p.size * scale, p.size * scale * 1.6);
+        ctx.fillRect(px.px, px.py - view.zOffset(p.y, p.z), p.size * s, p.size * s * 1.6);
       } else {
         ctx.beginPath();
-        ctx.arc(px.px, px.py - p.z * scale * 0.7, p.size * scale, 0, Math.PI * 2);
+        ctx.arc(px.px, px.py - view.zOffset(p.y, p.z), p.size * s, 0, Math.PI * 2);
         ctx.fill();
       }
     }

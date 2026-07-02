@@ -100,34 +100,34 @@ export class Ball {
   }
 
   draw(ctx, view) {
-    const { scale } = view;
-
     // Landing marker
     if (this.inFlight && this.z > 0.5) {
       const land = this.predictLanding();
       const lp = view.toPx(land.x, land.y);
+      const ls = view.scaleAt(land.y);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(lp.px, lp.py, scale * 0.45, 0, Math.PI * 2);
+      ctx.ellipse(lp.px, lp.py, ls * 0.45, ls * 0.45 * (view.mode === '3d' ? 0.45 : 1), 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     // Shadow at the true court position
     const sp = view.toPx(this.x, this.y);
+    const s = view.scaleAt(this.y);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
-    ctx.ellipse(sp.px, sp.py, scale * 0.32, scale * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(sp.px, sp.py, s * 0.32, s * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Ball, offset upward with height; tinted by spin while flying
-    const by = sp.py - this.z * scale * 0.7;
+    const by = sp.py - view.zOffset(this.y, this.z);
     let color = this.skinColor;
     if (this.inFlight && this.spin > 0.15) color = '#ffb14e';
     else if (this.inFlight && this.spin < -0.15) color = '#a7e9ff';
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(sp.px, by, scale * 0.32, 0, Math.PI * 2);
+    ctx.arc(sp.px, by, s * 0.32, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.lineWidth = 1;

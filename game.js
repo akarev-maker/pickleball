@@ -5,7 +5,8 @@ import {
   PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen, LINE_TOL,
 } from './rules.js';
 import {
-  setupCanvas, drawCourt, COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X,
+  setupCanvas, drawCourt, drawNet,
+  COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X,
 } from './court.js';
 import { Ball } from './ball.js';
 import { Player } from './player.js';
@@ -24,8 +25,20 @@ const BANNER_SECS = 2;
 const CPU_SERVE_DELAY = 1.2;
 
 const canvas = document.getElementById('game');
-let view = setupCanvas(canvas);
-window.addEventListener('resize', () => { view = setupCanvas(canvas); });
+let viewMode = 'top';
+try {
+  if (localStorage.getItem('pickleball.view') === '3d') viewMode = '3d';
+} catch { /* storage unavailable */ }
+let view = setupCanvas(canvas, viewMode);
+window.addEventListener('resize', () => { view = setupCanvas(canvas, viewMode); });
+
+function toggleView() {
+  viewMode = viewMode === 'top' ? '3d' : 'top';
+  try {
+    localStorage.setItem('pickleball.view', viewMode);
+  } catch { /* storage unavailable */ }
+  view = setupCanvas(canvas, viewMode);
+}
 
 const keys = new Set();
 window.addEventListener('keydown', (e) => {
@@ -34,6 +47,7 @@ window.addEventListener('keydown', (e) => {
   }
   initAudio();
   if (e.code === 'KeyM') { ui.setMuteLabel(toggleMute()); return; }
+  if (e.code === 'KeyV') { toggleView(); return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { togglePause(); return; }
   if (state === 'replay') replaySkip = true;
   keys.add(e.code);
@@ -581,7 +595,7 @@ function updateRally(dt) {
 
 function drawCrosshair(ctx) {
   const p = view.toPx(aim.x, aim.y);
-  const r = view.scale * 0.5;
+  const r = view.scaleAt(aim.y) * 0.5;
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -599,10 +613,11 @@ function drawCrosshair(ctx) {
 
 function drawChargeMeter(ctx) {
   const p = view.toPx(player.x, player.y);
-  const w = view.scale * 2.4;
-  const h = view.scale * 0.35;
+  const s = view.scaleAt(player.y);
+  const w = s * 2.4;
+  const h = s * 0.35;
   const x = p.px - w / 2;
-  const y = p.py + view.scale * 1.3;
+  const y = p.py + s * 1.3;
   ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
   ctx.fillRect(x, y, w, h);
   ctx.fillStyle = charge < 0.7 ? '#b8e986' : '#ff8a5e';
@@ -638,13 +653,19 @@ function draw() {
     ctx.fillRect(tl.px, tl.py, (COURT_W - CENTER_X) * view.scale, COURT_L * view.scale);
   }
   fx.drawUnder(ctx, view);
-  cpu.draw(ctx, view);
+  // Depth-sort so the 3D view occludes correctly (far first, net between).
+  const drawables = [
+    { y: NET_Y, draw: () => drawNet(ctx, view) },
+    { y: cpu.y, draw: () => cpu.draw(ctx, view) },
+    { y: player.y, draw: () => player.draw(ctx, view) },
+  ];
   if (variant === 'doubles' && state !== 'menu') {
-    opp2.draw(ctx, view);
-    partner.draw(ctx, view);
+    drawables.push({ y: opp2.y, draw: () => opp2.draw(ctx, view) });
+    drawables.push({ y: partner.y, draw: () => partner.draw(ctx, view) });
   }
-  player.draw(ctx, view);
-  if (state !== 'menu') ball.draw(ctx, view);
+  if (state !== 'menu') drawables.push({ y: ball.y, draw: () => ball.draw(ctx, view) });
+  drawables.sort((a, b) => a.y - b.y);
+  for (const d of drawables) d.draw();
   fx.drawOver(ctx, view);
   if ((state === 'rally' || state === 'serving') && aim.active) drawCrosshair(ctx);
   if (charge > 0) drawChargeMeter(ctx);
@@ -735,8 +756,10 @@ ui.onMuteClick(() => {
   initAudio();
   ui.setMuteLabel(toggleMute());
 });
-if (window.location?.hash === '#demo') {
+const hash = window.location?.hash;
+if (hash === '#demo' || hash === '#demo3d') {
   // Dev/demo mode: start immediately on medium and auto-serve.
+  if (hash === '#demo3d' && viewMode !== '3d') toggleView();
   ui.hideOverlays();
   keys.add('Space');
   startGame('medium');

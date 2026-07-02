@@ -47,6 +47,7 @@ or `npm start`, which runs the same command.
 | Shift (held at contact) | Dink — a soft drop shot into the opponent's kitchen |
 | E / Q (held at contact) | Topspin / slice. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. |
 | Space | Serve |
+| V | Toggle camera: top-down or behind-the-player pseudo-3D |
 | Esc / P | Pause (resume, restart match, or quit) |
 | M | Mute |
 | R | Quit to menu |
