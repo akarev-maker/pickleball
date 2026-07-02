@@ -11,7 +11,11 @@ No dependencies, no build step.
   playstyle — from Rookie Rick to The Wall. Win to advance a rung; lose and
   retry. Progress is saved in your browser.
 - **Quick Play:** a single game vs an easy/medium/hard CPU.
-
+- **Doubles:** you and a CPU partner vs two CPUs — one hit per team, your
+  partner covers whichever half you don't.
+- **Skinny Singles:** half-court practice game; the right half is out for
+  everyone.
+- **Best of 3:** toggle on the difficulty row for any quick-play variant.
 - **Daily challenge:** a date-seeded opponent and physics modifier (crosswinds,
   moon gravity…) — one win credit per day.
 
