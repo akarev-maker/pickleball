@@ -73,9 +73,10 @@ export class Rally {
     return null;
   }
 
-  recordBounce() {
+  recordBounce(side) {
     if (this.bouncedSinceLastHit) {
-      return { winner: this.lastHitter, reason: 'Double bounce!' };
+      // The side where the ball died failed to return it.
+      return { winner: other(side), reason: 'Double bounce!' };
     }
     this.bouncedSinceLastHit = true;
     return null;

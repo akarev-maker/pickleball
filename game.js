@@ -126,11 +126,36 @@ function playerShot() {
       apexZ: 4.5,
     };
   }
+  // Flat-ish drives: a lower apex means a shorter flight, so good placement
+  // can actually beat the defender to the spot.
   return {
     tx: clamp(CENTER_X + dir.dx * 7 + rand(-1.5, 1.5), 1, COURT_W - 1),
     ty: clamp(9 + dir.dy * 6 + rand(-1.5, 1.5), 2, NET_Y - 2),
-    apexZ: rand(6.5, 7.5),
+    apexZ: rand(4.3, 5.3),
   };
+}
+
+// Shots hit at full stretch are error-prone: extra scatter (which can send
+// the ball out) and a flattened arc (which can find the net). This is what
+// lets good placement win rallies.
+function applyStress(shot, hitter, base) {
+  // Stress is the hitter's lateral offset from the ball's flight line — a
+  // defender standing on the path plays a clean shot; a lunge is erratic.
+  const speed = Math.hypot(ball.vx, ball.vy);
+  let offset;
+  if (speed > 0.1) {
+    const ux = ball.vx / speed;
+    const uy = ball.vy / speed;
+    offset = Math.abs((ball.x - hitter.x) * uy - (ball.y - hitter.y) * ux);
+  } else {
+    offset = Math.hypot(ball.x - hitter.x, ball.y - hitter.y);
+  }
+  const runFactor = Math.min((hitter.speedNow || 0) / 16, 1);
+  const stress = Math.min(1, Math.max(offset / 2.5, runFactor * 0.7));
+  const e = base * (0.3 + 3 * stress * stress);
+  shot.tx += rand(-e, e);
+  shot.ty += rand(-e, e);
+  shot.apexZ = Math.max(3.2, shot.apexZ - stress * rand(0, 2));
 }
 
 function hitterInKitchen(who) {
@@ -145,24 +170,36 @@ function mustLetBounce() {
   return (hitNumber === 2 || hitNumber === 3) && !rally.bouncedSinceLastHit;
 }
 
+// A ball on course to land out is left alone (playing it would rescue the
+// opponent's error); once it has bounced in, it's live.
+function ballIsPlayable() {
+  if (rally.bouncedSinceLastHit) return true;
+  const land = ball.predictLanding();
+  return land.x >= -0.2 && land.x <= COURT_W + 0.2
+    && land.y >= -0.2 && land.y <= COURT_L + 0.2;
+}
+
 function handleHits() {
+  const playable = ballIsPlayable();
   // Player hits balls coming toward them (vy > 0), CPU the reverse.
-  if (ball.vy > 0 && player.canReach(ball) && !mustLetBounce()) {
+  if (ball.vy > 0 && playable && player.canReach(ball) && !mustLetBounce()) {
     const volley = !rally.bouncedSinceLastHit;
     const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
     if (result) return result;
     const shot = playerShot();
+    applyStress(shot, player, 1.2);
     ball.launchTo(shot.tx, shot.ty, shot.apexZ);
     return null;
   }
 
-  if (ball.vy < 0 && cpu.canReach(ball) && !mustLetBounce()) {
+  if (ball.vy < 0 && playable && cpu.canReach(ball) && !mustLetBounce()) {
     const volley = !rally.bouncedSinceLastHit;
     // Medium and hard CPUs know better than to volley from the kitchen.
     if (volley && hitterInKitchen(cpu) && cpu.difficulty.aimError < 4) return null;
     const result = rally.recordHit(CPU, { volley, inKitchen: hitterInKitchen(cpu) });
     if (result) return result;
     const shot = cpu.chooseShot(ball, player);
+    applyStress(shot, cpu, cpu.difficulty.aimError * 0.5);
     ball.launchTo(shot.tx, shot.ty, shot.apexZ);
     return null;
   }
@@ -180,7 +217,7 @@ function handleBounce() {
   if (isFirstBounceSinceHit && out) {
     return rally.recordOut(rally.lastHitter);
   }
-  return rally.recordBounce();
+  return rally.recordBounce(ball.y < NET_Y ? CPU : PLAYER);
 }
 
 function checkNet() {
@@ -196,7 +233,7 @@ function checkNet() {
 
 function updateRally(dt) {
   player.update(dt, keys);
-  cpu.update(dt, ball);
+  cpu.update(dt, ball, ballIsPlayable());
 
   let result = handleHits();
 
@@ -209,9 +246,9 @@ function updateRally(dt) {
     } else {
       result = checkNet();
     }
-    // A ball that rolled dead without a rally-ending bounce: last hitter wins.
+    // A ball that rolled dead: whichever side it died on failed to return it.
     if (!result && !ball.inFlight) {
-      result = { winner: rally.lastHitter, reason: 'No return!' };
+      result = { winner: ball.y < NET_Y ? PLAYER : CPU, reason: 'No return!' };
     }
   }
 
@@ -271,6 +308,9 @@ function frame(now) {
   draw();
   requestAnimationFrame(frame);
 }
+
+// Debug/test handle (used by tests/balance.test.js and handy in devtools).
+window.__pickleball = { ball, player, cpu, getState: () => state, getScore: () => score };
 
 ui.updateScore(score, score.servingSide);
 if (window.location?.hash === '#demo') {

@@ -12,6 +12,7 @@ export class Player {
     this.y = COURT_L - 4;
     this.dx = 0;
     this.dy = 0;
+    this.speedNow = 0;
   }
 
   update(dt, keys) {
@@ -28,6 +29,7 @@ export class Player {
     }
     this.dx = dx;
     this.dy = dy;
+    this.speedNow = len > 0 ? SPEED : 0;
     this.x += dx * SPEED * dt;
     this.y += dy * SPEED * dt;
     // Confined to own half plus the apron; can't cross the net.

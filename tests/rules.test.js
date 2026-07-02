@@ -142,6 +142,16 @@ test('two bounces on one side gives the point to the last hitter', () => {
   assertEqual(res.winner, PLAYER);
 });
 
+test('two bounces on the hitter\'s own side gives the point to the opponent', () => {
+  const r = new Rally(CPU);
+  r.recordHit(CPU, { volley: false, inKitchen: false }); // serve
+  // CPU's shot fails to cross the net and bounces twice on the CPU side.
+  assertEqual(r.recordBounce(CPU), null);
+  const res = r.recordBounce(CPU);
+  assert(res !== null, 'second bounce ends rally');
+  assertEqual(res.winner, PLAYER, 'point goes against the side where the ball died');
+});
+
 // --- Rally: out ---
 
 test('hitting out gives the point to the other side', () => {

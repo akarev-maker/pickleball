@@ -7,8 +7,8 @@ import { drawFigure, REACH, MAX_HIT_HEIGHT } from './player.js';
 
 const DIFFICULTIES = {
   easy: { speed: 9, reaction: 0.45, aimError: 4 },
-  medium: { speed: 12, reaction: 0.25, aimError: 2.5 },
-  hard: { speed: 15, reaction: 0.12, aimError: 1.2 },
+  medium: { speed: 12, reaction: 0.25, aimError: 3 },
+  hard: { speed: 14, reaction: 0.12, aimError: 1.8 },
 };
 
 export class Cpu {
@@ -29,13 +29,14 @@ export class Cpu {
     this.y = 4;
     this.reactionLeft = 0;
     this.trackedBall = null;
+    this.speedNow = 0;
   }
 
-  update(dt, ball) {
+  update(dt, ball, playable = true) {
     let targetX = CENTER_X;
     let targetY = 6; // home position between baseline and kitchen
 
-    const comingMyWay = ball.inFlight && ball.vy < 0;
+    const comingMyWay = ball.inFlight && ball.vy < 0 && playable;
     if (comingMyWay) {
       if (this.trackedBall !== ball.launchId) {
         this.trackedBall = ball.launchId;
@@ -56,8 +57,12 @@ export class Cpu {
     const dist = Math.hypot(dx, dy);
     const step = this.difficulty.speed * dt;
     if (dist > 0.2) {
-      this.x += (dx / dist) * Math.min(step, dist);
-      this.y += (dy / dist) * Math.min(step, dist);
+      const moved = Math.min(step, dist);
+      this.x += (dx / dist) * moved;
+      this.y += (dy / dist) * moved;
+      this.speedNow = moved / dt;
+    } else {
+      this.speedNow = 0;
     }
     this.x = Math.max(-MARGIN + 1, Math.min(COURT_W + MARGIN - 1, this.x));
     this.y = Math.max(-MARGIN + 1, Math.min(NET_Y - 1.2, this.y));
@@ -87,10 +92,11 @@ export class Cpu {
     const awayX = playerPos.x < CENTER_X
       ? rand(CENTER_X + 2, COURT_W - 2)
       : rand(2, CENTER_X - 2);
+    // Deliberately unclamped: aim error can and should send balls out.
     return {
-      tx: clampX(awayX + rand(-aimError, aimError)),
-      ty: rand(KITCHEN_BOTTOM + 2, COURT_L - 2) + rand(-aimError, aimError),
-      apexZ: rand(6, 8),
+      tx: awayX + rand(-aimError, aimError),
+      ty: rand(KITCHEN_BOTTOM + 2, COURT_L - 1) + rand(-aimError, aimError),
+      apexZ: rand(4.3, 5.5),
     };
   }
 
