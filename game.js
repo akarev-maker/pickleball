@@ -102,11 +102,17 @@ let charge = 0; // 0..1 shot power, held Space / mouse button charges it
 let netRebound = false; // ball fell back off the net; label the point 'Netted!'
 let swingWindow = 0; // buffered swing: connects if the ball arrives in time
 let swingCooldown = 0; // whiff recovery; also grace right after serving
+let swingMods = { dink: false, spin: 0 }; // captured when the swing starts
 
 // A release starts a swing: it stays live for a short window so slightly
-// early timing still connects.
+// early timing still connects. Dink/spin modifiers are locked in here —
+// releasing them together with the swing button still counts.
 function queueSwing() {
   if (state !== 'rally' || swingCooldown > 0 || swingWindow > 0) return;
+  swingMods = {
+    dink: keys.has('ShiftLeft') || keys.has('ShiftRight'),
+    spin: keys.has('KeyE') ? 1 : (keys.has('KeyQ') ? -1 : 0),
+  };
   swingWindow = 0.16;
   player.swingT = 0.28;
 }
@@ -361,9 +367,8 @@ function endRally({ winner, reason }) {
 }
 
 function playerShot() {
-  const dink = keys.has('ShiftLeft') || keys.has('ShiftRight');
-  // Hold E for topspin, Q for slice at contact.
-  const spin = keys.has('KeyE') ? 1 : (keys.has('KeyQ') ? -1 : 0);
+  // Modifiers were locked in when the swing started (queueSwing).
+  const { dink, spin } = swingMods;
   // You can only unload on a ball you take high — power on a low ball is
   // throttled so a full meter doesn't just drill the net.
   const power = charge * Math.max(0.3, Math.min(1, ball.z / 4));
