@@ -14,6 +14,7 @@ export class Ball {
     this.vy = 0;
     this.vz = 0;
     this.inFlight = false;
+    this.launchId = 0; // increments per launch so the CPU can react per shot
   }
 
   placeAt(x, y, z = 0) {
@@ -37,6 +38,7 @@ export class Ball {
     this.vy = (ty - this.y) / t;
     this.vz = vz0;
     this.inFlight = true;
+    this.launchId++;
   }
 
   // Integrates one step; returns 'bounce' if the ball hit the ground.
