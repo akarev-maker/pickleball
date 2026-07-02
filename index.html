@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pickleball</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="stage">
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div id="score"></div>
+      <div id="banner" class="hidden"></div>
+      <div id="menu" class="overlay">
+        <h1>Pickleball</h1>
+        <p class="tagline">First to 11, win by 2. Mind the kitchen.</p>
+        <div class="difficulty">
+          <button data-difficulty="easy">Easy</button>
+          <button data-difficulty="medium">Medium</button>
+          <button data-difficulty="hard">Hard</button>
+        </div>
+        <div id="help">
+          <p><strong>Move:</strong> Arrow keys / WASD</p>
+          <p><strong>Serve:</strong> Space</p>
+          <p><strong>Dink:</strong> hold Shift when hitting</p>
+          <p>You hit automatically when the ball is in reach —
+             your movement direction steers the shot.</p>
+        </div>
+      </div>
+      <div id="gameover" class="overlay hidden">
+        <h1 id="gameover-title"></h1>
+        <button id="restart">Play again</button>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
