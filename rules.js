@@ -1,13 +1,13 @@
 // Pure pickleball rules logic. No imports, no DOM — testable with plain Node.
 //
-// Court geometry (feet): a real court is 20x44; ours is widened to 23 for
+// Court geometry (feet): a real court is 20x44; ours is widened to 26 for
 // juicier angles. Net at y = 22; kitchen (non-volley zone) spans y 15..29.
 // Player occupies the bottom half (y > 22), CPU the top half (y < 22).
 
 export const PLAYER = 'player';
 export const CPU = 'cpu';
 
-export const COURT_W = 23;
+export const COURT_W = 26;
 export const COURT_L = 44;
 export const NET_Y = 22;
 export const KITCHEN_TOP = 15;

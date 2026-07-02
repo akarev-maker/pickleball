@@ -2,7 +2,7 @@
 
 import { COURT_W, COURT_L, NET_Y, MARGIN } from './court.js';
 
-const SPEED = 16; // ft/s
+const SPEED = 17.5; // ft/s (scaled with the widened court)
 export const REACH = 2.5; // ft — CPU reach
 export const PLAYER_REACH = 3.2; // ft — forgiving: the paddle extends past the body
 export const MAX_HIT_HEIGHT = 7; // ft

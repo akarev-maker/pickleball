@@ -122,7 +122,8 @@ function quad(ctx, view, x1, y1, x2, y2) {
   ctx.fill();
 }
 
-export function drawCourt(ctx, view) {
+// left/right narrow the court for skinny singles (default: full width).
+export function drawCourt(ctx, view, left = 0, right = COURT_W) {
   // Apron / backdrop
   if (view.mode === '3d') {
     // Evening sky gradient down to the horizon
@@ -153,35 +154,36 @@ export function drawCourt(ctx, view) {
 
   // Court surface + a clearly distinct kitchen (non-volley zone)
   ctx.fillStyle = '#3f8ac2';
-  quad(ctx, view, 0, 0, COURT_W, COURT_L);
+  quad(ctx, view, left, 0, right, COURT_L);
   ctx.fillStyle = '#6db3dd';
-  quad(ctx, view, 0, KITCHEN_TOP, COURT_W, KITCHEN_BOTTOM);
+  quad(ctx, view, left, KITCHEN_TOP, right, KITCHEN_BOTTOM);
 
   // Lines
   ctx.strokeStyle = '#f4f7f5';
   ctx.lineWidth = Math.max(2, view.scale * 0.17);
-  line(ctx, view, 0, 0, COURT_W, 0);
-  line(ctx, view, 0, COURT_L, COURT_W, COURT_L);
-  line(ctx, view, 0, 0, 0, COURT_L);
-  line(ctx, view, COURT_W, 0, COURT_W, COURT_L);
+  line(ctx, view, left, 0, right, 0);
+  line(ctx, view, left, COURT_L, right, COURT_L);
+  line(ctx, view, left, 0, left, COURT_L);
+  line(ctx, view, right, 0, right, COURT_L);
   // Kitchen lines drawn heavier — they matter.
   ctx.lineWidth = Math.max(3, view.scale * 0.24);
-  line(ctx, view, 0, KITCHEN_TOP, COURT_W, KITCHEN_TOP);
-  line(ctx, view, 0, KITCHEN_BOTTOM, COURT_W, KITCHEN_BOTTOM);
+  line(ctx, view, left, KITCHEN_TOP, right, KITCHEN_TOP);
+  line(ctx, view, left, KITCHEN_BOTTOM, right, KITCHEN_BOTTOM);
   ctx.lineWidth = Math.max(2, view.scale * 0.17);
-  // Centerlines split the service areas only (not the kitchen)
-  line(ctx, view, CENTER_X, 0, CENTER_X, KITCHEN_TOP);
-  line(ctx, view, CENTER_X, KITCHEN_BOTTOM, CENTER_X, COURT_L);
-
+  // Centerlines split the service areas only (skinny has a single box)
+  if (right - left === COURT_W) {
+    line(ctx, view, CENTER_X, 0, CENTER_X, KITCHEN_TOP);
+    line(ctx, view, CENTER_X, KITCHEN_BOTTOM, CENTER_X, COURT_L);
+  }
 }
 
 // Drawn separately so the 3D view can depth-sort it against entities
 // (far-side players go behind the net, near-side in front).
-export function drawNet(ctx, view) {
+export function drawNet(ctx, view, left = 0, right = COURT_W) {
   if (view.mode === '3d') {
     // A standing mesh band between the posts.
-    const l = view.toPx(-0.8, NET_Y);
-    const r = view.toPx(COURT_W + 0.8, NET_Y);
+    const l = view.toPx(left - 0.8, NET_Y);
+    const r = view.toPx(right + 0.8, NET_Y);
     const top = view.zOffset(NET_Y, 3);
     ctx.fillStyle = 'rgba(20, 30, 26, 0.82)';
     ctx.fillRect(l.px, l.py - top, r.px - l.px, top);
@@ -196,8 +198,8 @@ export function drawNet(ctx, view) {
       ctx.stroke();
     }
   } else {
-    const net = view.toPx(-0.8, NET_Y);
-    const netW = (COURT_W + 1.6) * view.scale;
+    const net = view.toPx(left - 0.8, NET_Y);
+    const netW = (right - left + 1.6) * view.scale;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
     ctx.fillRect(net.px, net.py, netW, view.scale * 0.5);
     ctx.fillStyle = '#1d2b26';

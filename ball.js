@@ -22,9 +22,11 @@ export class Ball {
   }
 
   // Topspin makes the ball fly "heavy" (dips → same target, faster flight);
-  // slice floats. Using effective gravity keeps landing prediction exact.
+  // slice floats only slightly — its weapon is the low skid, not the float.
+  // Using effective gravity keeps landing prediction exact.
   get geff() {
-    return G * (1 + 0.35 * this.spin) * this.gravityScale;
+    const factor = this.spin >= 0 ? 0.35 : 0.15;
+    return G * (1 + factor * this.spin) * this.gravityScale;
   }
 
   placeAt(x, y, z = 0) {

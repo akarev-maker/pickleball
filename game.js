@@ -148,6 +148,12 @@ let score = new Score();
 let rally = null;
 let mode = 'quick'; // 'quick' | 'tournament' | 'daily'
 let variant = 'singles'; // 'singles' | 'doubles' | 'skinny'
+// Skinny singles plays on a centered 14 ft strip — its own narrow court.
+const SKINNY_W = 14;
+const SKINNY_L = (COURT_W - SKINNY_W) / 2;
+const SKINNY_R = SKINNY_L + SKINNY_W;
+const courtLeft = () => (variant === 'skinny' ? SKINNY_L : 0);
+const courtRight = () => (variant === 'skinny' ? SKINNY_R : COURT_W);
 let bestOf3 = false;
 let matchGames = { [PLAYER]: 0, [CPU]: 0 };
 let opponent = null; // roster profile in tournament mode
@@ -217,9 +223,9 @@ let lastOpts = {};
 
 function setVariant(v) {
   variant = v;
-  cpu.homeX = v === 'skinny' ? CENTER_X / 2 : (v === 'doubles' ? CENTER_X - 5 : CENTER_X);
+  cpu.homeX = v === 'doubles' ? CENTER_X - 6 : CENTER_X;
   cpu.coverHalf = v === 'doubles' ? 'left' : null;
-  opp2.homeX = CENTER_X + 5;
+  opp2.homeX = CENTER_X + 6;
   opp2.coverHalf = 'right';
 }
 
@@ -361,14 +367,14 @@ function startServe() {
   // right is +x; the top player's right is -x. Skinny plays the left
   // half-court only, so everyone serves straight from mid-half.
   if (server === PLAYER) {
-    serveX = variant === 'skinny' ? CENTER_X / 2 : (evenScore ? CENTER_X + 5 : CENTER_X - 5);
+    serveX = variant === 'skinny' ? CENTER_X : (evenScore ? CENTER_X + 5 : CENTER_X - 5);
     player.x = serveX;
     player.y = COURT_L + 1.5;
     cpu.reset();
     if (variant !== 'doubles') cpu.x = variant === 'skinny' ? serveX : COURT_W - serveX;
     ui.showBanner(touchMode ? 'Your serve — tap DRIVE' : 'Your serve — press SPACE (hold ←/→ to aim)', 0);
   } else {
-    serveX = variant === 'skinny' ? CENTER_X / 2 : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
+    serveX = variant === 'skinny' ? CENTER_X : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
     cpu.reset();
     cpu.x = serveX;
     cpu.y = -1.5;
@@ -380,7 +386,7 @@ function startServe() {
   if (variant === 'doubles') {
     opp2.reset();
     partner.reset();
-    partner.x = player.x < CENTER_X ? CENTER_X + 5 : CENTER_X - 5;
+    partner.x = player.x < CENTER_X ? CENTER_X + 6 : CENTER_X - 6;
   }
   const sy = server === PLAYER ? COURT_L + 1.5 : -1.5;
   ball.placeAt(serveX, sy, 2.5);
@@ -396,26 +402,27 @@ function serve() {
   sfx.paddle(0.4);
   ui.hideBanner();
 
-  // Skinny serves go straight up the half-court; normal serves go diagonal.
+  // Skinny serves go straight up the strip; normal serves go diagonal.
   const baseTx = variant === 'skinny' ? serveX : COURT_W - serveX;
-  const maxTx = variant === 'skinny' ? CENTER_X - 1 : COURT_W - 1;
+  const minTx = courtLeft() + 1;
+  const maxTx = courtRight() - 1;
   if (server === PLAYER) {
     let tx;
     let ty;
     if (aim.active) {
-      tx = clamp(aim.x + rand(-1, 1), 1, maxTx);
+      tx = clamp(aim.x + rand(-1, 1), minTx, maxTx);
       ty = clamp(aim.y + rand(-1, 1), 1, KITCHEN_TOP - 0.5);
     } else {
       let steer = 0;
       if (keys.has('ArrowLeft') || keys.has('KeyA')) steer -= 1;
       if (keys.has('ArrowRight') || keys.has('KeyD')) steer += 1;
-      tx = clamp(baseTx + steer * 3 + rand(-1.2, 1.2), 1, maxTx);
+      tx = clamp(baseTx + steer * 3 + rand(-1.2, 1.2), minTx, maxTx);
       ty = rand(6, 12);
     }
     ball.launchTo(tx, ty, rand(7.5, 9));
   } else {
     const err = cpu.difficulty.aimError;
-    const tx = clamp(baseTx + rand(-err, err), 1, maxTx);
+    const tx = clamp(baseTx + rand(-err, err), minTx, maxTx);
     ball.launchTo(tx, clamp(rand(33, 41) + rand(-err, err), 30, COURT_L + 1), rand(7.5, 9));
   }
   prevBallY = ball.y;
@@ -497,7 +504,10 @@ function applyStress(shot, hitter, base) {
     offset = Math.hypot(ball.x - hitter.x, ball.y - hitter.y);
   }
   const runFactor = Math.min((hitter.speedNow || 0) / 16, 1);
-  const stress = Math.min(1, Math.max(offset / 2.5, runFactor * 0.7));
+  // Digging a ball up from below the net line is awkward for everyone —
+  // this is what makes low skidding slices (and good dinks) dangerous.
+  const lowBall = Math.max(0, (1.3 - ball.z) / 1.3);
+  const stress = Math.min(1, Math.max(offset / 2.5, runFactor * 0.7, lowBall * 0.85));
   const e = base * (0.3 + 3 * stress * stress);
   shot.tx += rand(-e, e);
   shot.ty += rand(-e, e);
@@ -521,8 +531,7 @@ function mustLetBounce() {
 function ballIsPlayable() {
   if (rally.bouncedSinceLastHit) return true;
   const land = ball.predictLanding();
-  const maxX = variant === 'skinny' ? CENTER_X + 0.2 : COURT_W + 0.2;
-  return land.x >= -0.2 && land.x <= maxX
+  return land.x >= courtLeft() - 0.2 && land.x <= courtRight() + 0.2
     && land.y >= -0.2 && land.y <= COURT_L + 0.2;
 }
 
@@ -536,7 +545,7 @@ function botHit(bot, teamSide, target) {
   const result = rally.recordHit(teamSide, { volley, inKitchen: hitterInKitchen(bot) });
   if (result) return result;
   const shot = bot.chooseShot(ball, target);
-  if (variant === 'skinny') shot.tx = Math.min(shot.tx, CENTER_X - 0.7);
+  if (variant === 'skinny') shot.tx = clamp(shot.tx, SKINNY_L + 0.7, SKINNY_R - 0.7);
   applyStress(shot, bot, bot.difficulty.aimError * 0.5);
   bot.swingT = 0.28;
   sfx.paddle(0.25);
@@ -586,9 +595,9 @@ function handleHits() {
   return null;
 }
 
-// Skinny singles: straight serves into the left half-court, past the kitchen.
+// Skinny singles: straight serves into the strip, past the kitchen.
 function skinnyServeValid(server, x, y) {
-  if (x <= -LINE_TOL || x >= CENTER_X + LINE_TOL) return false;
+  if (x <= SKINNY_L - LINE_TOL || x >= SKINNY_R + LINE_TOL) return false;
   if (server === PLAYER) return y > -LINE_TOL && y < KITCHEN_TOP;
   return y > KITCHEN_BOTTOM && y < COURT_L + LINE_TOL;
 }
@@ -602,9 +611,8 @@ function handleBounce() {
     return { winner: other(rally.server), reason: 'Service fault!' };
   }
   const isFirstBounceSinceHit = !rally.bouncedSinceLastHit;
-  // A ball touching the line is in; in skinny the right half is out.
-  const maxX = variant === 'skinny' ? CENTER_X + LINE_TOL : COURT_W + LINE_TOL;
-  const out = ball.x < -LINE_TOL || ball.x > maxX
+  // A ball touching the line is in; skinny narrows the sidelines.
+  const out = ball.x < courtLeft() - LINE_TOL || ball.x > courtRight() + LINE_TOL
     || ball.y < -LINE_TOL || ball.y > COURT_L + LINE_TOL;
   if (isFirstBounceSinceHit && out) {
     return rally.recordOut(rally.lastHitter);
@@ -651,7 +659,7 @@ function updateRally(dt) {
   if (variant === 'doubles') {
     // Your partner slides to whichever half you're not covering.
     partner.coverHalf = player.x < CENTER_X ? 'right' : 'left';
-    partner.homeX = player.x < CENTER_X ? CENTER_X + 5 : CENTER_X - 5;
+    partner.homeX = player.x < CENTER_X ? CENTER_X + 6 : CENTER_X - 6;
     partner.update(dt, ball, playable);
     opp2.update(dt, ball, playable);
   }
@@ -768,17 +776,11 @@ function draw() {
   const { ox, oy } = fx.offsetPx(view.scale);
   ctx.save();
   ctx.translate(ox, oy);
-  drawCourt(ctx, view);
-  if (variant === 'skinny' && state !== 'menu') {
-    // The right half-court is out of play.
-    const tl = view.toPx(CENTER_X, 0);
-    ctx.fillStyle = 'rgba(10, 20, 15, 0.35)';
-    ctx.fillRect(tl.px, tl.py, (COURT_W - CENTER_X) * view.scale, COURT_L * view.scale);
-  }
+  drawCourt(ctx, view, courtLeft(), courtRight());
   fx.drawUnder(ctx, view);
   // Depth-sort so the 3D view occludes correctly (far first, net between).
   const drawables = [
-    { y: NET_Y, draw: () => drawNet(ctx, view) },
+    { y: NET_Y, draw: () => drawNet(ctx, view, courtLeft(), courtRight()) },
     { y: cpu.y, draw: () => cpu.draw(ctx, view) },
     { y: player.y, draw: () => player.draw(ctx, view) },
   ];
@@ -902,7 +904,7 @@ if (hash.startsWith('#demo')) {
   if (hash.includes('3d') && viewMode !== '3d') toggleView();
   ui.hideOverlays();
   keys.add('Space');
-  startGame('medium');
+  startGame('medium', { variant: hash.includes('skinny') ? 'skinny' : 'singles' });
 } else {
   showMainMenu();
 }
