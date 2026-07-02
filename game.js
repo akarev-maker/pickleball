@@ -244,6 +244,8 @@ function endRally({ winner, reason }) {
 
 function playerShot() {
   const dink = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  // Hold E for topspin, Q for slice at contact.
+  const spin = keys.has('KeyE') ? 1 : (keys.has('KeyQ') ? -1 : 0);
   // You can only unload on a ball you take high — power on a low ball is
   // throttled so a full meter doesn't just drill the net.
   const power = charge * Math.max(0.3, Math.min(1, ball.z / 4));
@@ -261,6 +263,7 @@ function playerShot() {
       apexZ: 4.5,
       power: 0,
       dink: true,
+      spin: spin !== 0 ? spin * 0.6 : -0.3, // dinks carry natural slice
     };
   }
 
@@ -271,7 +274,7 @@ function playerShot() {
   const apexZ = 5.4 - 1.8 * power + rand(-0.3, 0.3);
   const timeScale = 1 - 0.3 * power;
   if (aim.active) {
-    return { tx: aim.x, ty: aim.y, apexZ, power, timeScale };
+    return { tx: aim.x, ty: aim.y, apexZ, power, timeScale, spin };
   }
   const dir = player.moveDir();
   return {
@@ -280,6 +283,7 @@ function playerShot() {
     apexZ,
     power,
     timeScale,
+    spin,
   };
 }
 
@@ -340,7 +344,7 @@ function handleHits() {
     applyStress(shot, player, 1.2 + 0.6 * shot.power);
     if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
     if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
-    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1);
+    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
     netRebound = false;
     return null;
   }
@@ -355,7 +359,7 @@ function handleHits() {
     const shot = cpu.chooseShot(ball, player);
     applyStress(shot, cpu, cpu.difficulty.aimError * 0.5);
     sfx.paddle(0.25);
-    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1);
+    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
     netRebound = false;
     return null;
   }

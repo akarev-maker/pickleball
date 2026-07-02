@@ -15,6 +15,13 @@ export class Ball {
     this.vz = 0;
     this.inFlight = false;
     this.launchId = 0; // increments per launch so the CPU can react per shot
+    this.spin = 0; // -1 slice .. +1 topspin
+  }
+
+  // Topspin makes the ball fly "heavy" (dips → same target, faster flight);
+  // slice floats. Using effective gravity keeps landing prediction exact.
+  get geff() {
+    return G * (1 + 0.35 * this.spin);
   }
 
   placeAt(x, y, z = 0) {
@@ -24,6 +31,7 @@ export class Ball {
     this.vx = 0;
     this.vy = 0;
     this.vz = 0;
+    this.spin = 0;
     this.inFlight = false;
   }
 
@@ -32,13 +40,15 @@ export class Ball {
   // rise to the apex, then fall to the ground. timeScale < 1 compresses the
   // flight (a punched shot): same landing spot, flatter and faster — from a
   // high contact point it can even be driven downward.
-  launchTo(tx, ty, apexZ, timeScale = 1) {
+  launchTo(tx, ty, apexZ, timeScale = 1, spin = 0) {
+    this.spin = spin;
+    const g = this.geff;
     const rise = Math.max(apexZ - this.z, 0.5);
-    const vz0Arc = Math.sqrt(2 * G * rise);
-    let t = (vz0Arc + Math.sqrt(vz0Arc * vz0Arc + 2 * G * this.z)) / G;
+    const vz0Arc = Math.sqrt(2 * g * rise);
+    let t = (vz0Arc + Math.sqrt(vz0Arc * vz0Arc + 2 * g * this.z)) / g;
     t *= timeScale;
     // Vertical speed that still lands at z = 0 at time t.
-    this.vz = (0.5 * G * t * t - this.z) / t;
+    this.vz = (0.5 * g * t * t - this.z) / t;
     this.vx = (tx - this.x) / t;
     this.vy = (ty - this.y) / t;
     this.inFlight = true;
@@ -50,13 +60,18 @@ export class Ball {
     if (!this.inFlight) return null;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
-    this.vz -= G * dt;
+    this.vz -= this.geff * dt;
     this.z += this.vz * dt;
     if (this.z <= 0 && this.vz < 0) {
       this.z = 0;
-      this.vz = -this.vz * RESTITUTION;
-      this.vx *= GROUND_FRICTION;
-      this.vy *= GROUND_FRICTION;
+      // Topspin kicks forward with a livelier hop; slice skids low.
+      const rest = RESTITUTION * (this.spin >= 0 ? 1 + 0.15 * this.spin : 1 + 0.5 * this.spin);
+      const friction = GROUND_FRICTION
+        + (this.spin > 0 ? 0.22 * this.spin : 0.12 * -this.spin);
+      this.vz = -this.vz * rest;
+      this.vx *= friction;
+      this.vy *= friction;
+      this.spin *= 0.4;
       // A bounce too weak to matter ends the flight (ball rolls dead).
       if (this.vz < 2) {
         this.vz = 0;
@@ -70,7 +85,8 @@ export class Ball {
   // Where and when the ball next reaches z = 0 while descending.
   predictLanding() {
     if (!this.inFlight) return { x: this.x, y: this.y, t: 0 };
-    const t = (this.vz + Math.sqrt(this.vz * this.vz + 2 * G * this.z)) / G;
+    const g = this.geff;
+    const t = (this.vz + Math.sqrt(this.vz * this.vz + 2 * g * this.z)) / g;
     return { x: this.x + this.vx * t, y: this.y + this.vy * t, t };
   }
 
@@ -95,9 +111,12 @@ export class Ball {
     ctx.ellipse(sp.px, sp.py, scale * 0.32, scale * 0.2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ball, offset upward with height
+    // Ball, offset upward with height; tinted by spin while flying
     const by = sp.py - this.z * scale * 0.7;
-    ctx.fillStyle = '#f3ff4e';
+    let color = '#f3ff4e';
+    if (this.inFlight && this.spin > 0.15) color = '#ffb14e';
+    else if (this.inFlight && this.spin < -0.15) color = '#a7e9ff';
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(sp.px, by, scale * 0.32, 0, Math.PI * 2);
     ctx.fill();

@@ -34,6 +34,7 @@ or `npm start`, which runs the same command.
 | Mouse | Aim — the crosshair is where your shots (and serves) go |
 | Hold mouse button / Space | Charge power: flatter, faster, riskier shots |
 | Shift (held at contact) | Dink — a soft drop shot into the opponent's kitchen |
+| E / Q (held at contact) | Topspin / slice. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. |
 | Space | Serve |
 | Esc / P | Pause (resume, restart match, or quit) |
 | M | Mute |

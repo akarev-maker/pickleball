@@ -87,6 +87,7 @@ export class Cpu {
         ty: rand(COURT_L - 8, COURT_L - 2) + rand(-err, err),
         apexZ: rand(9, 11),
         timeScale: 1,
+        spin: 0,
       };
     }
 
@@ -97,6 +98,7 @@ export class Cpu {
         ty: NET_Y + rand(2.5, KITCHEN_BOTTOM - NET_Y - 0.5),
         apexZ: 4.5,
         timeScale: 1,
+        spin: -0.4, // dinks carry slice
       };
     }
 
@@ -111,6 +113,7 @@ export class Cpu {
       ty: rand(KITCHEN_BOTTOM + 2, COURT_L - 1) + rand(-err, err),
       apexZ: Math.max(3.6, rand(4.3, 5.5) - agg * 0.8),
       timeScale: 1 - 0.25 * agg,
+      spin: agg * 0.6, // aggressive types drive with topspin
     };
   }
 
