@@ -140,7 +140,9 @@ function endRally({ winner, reason }) {
 
 function playerShot() {
   const dink = keys.has('ShiftLeft') || keys.has('ShiftRight');
-  const power = charge;
+  // You can only unload on a ball you take high — power on a low ball is
+  // throttled so a full meter doesn't just drill the net.
+  const power = charge * Math.max(0.3, Math.min(1, ball.z / 4));
   charge = 0;
 
   if (dink) {
@@ -158,11 +160,13 @@ function playerShot() {
   }
 
   // Drives go where the crosshair points (keyboard steering as fallback).
-  // More power flattens the arc: faster and harder to chase, but riskier —
-  // extra scatter, and a flat ball can find the net.
+  // More power flattens the arc AND compresses the flight time: faster and
+  // harder to chase, but riskier — extra scatter, and a flat ball can find
+  // the net.
   const apexZ = 5.4 - 1.8 * power + rand(-0.3, 0.3);
+  const timeScale = 1 - 0.3 * power;
   if (aim.active) {
-    return { tx: aim.x, ty: aim.y, apexZ, power };
+    return { tx: aim.x, ty: aim.y, apexZ, power, timeScale };
   }
   const dir = player.moveDir();
   return {
@@ -170,6 +174,7 @@ function playerShot() {
     ty: clamp(9 + dir.dy * 6 + rand(-1.5, 1.5), 2, NET_Y - 2),
     apexZ,
     power,
+    timeScale,
   };
 }
 
@@ -228,7 +233,7 @@ function handleHits() {
     if (result) return result;
     const shot = playerShot();
     applyStress(shot, player, 1.2 + 0.6 * shot.power);
-    ball.launchTo(shot.tx, shot.ty, shot.apexZ);
+    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1);
     netRebound = false;
     return null;
   }
@@ -275,7 +280,7 @@ function handleNetCrossing() {
   const zAtNet = prevBallZ + (ball.z - prevBallZ) * f;
   if (zAtNet >= NET_HEIGHT) return;
 
-  if (zAtNet > NET_HEIGHT - 0.45 && Math.random() < 0.5) {
+  if (zAtNet > NET_HEIGHT - 0.45 && Math.random() < 0.35) {
     // Net cord: the ball clips the tape and dribbles over.
     ball.vy *= 0.3;
     ball.vx *= 0.5;
@@ -283,11 +288,12 @@ function handleNetCrossing() {
     return;
   }
 
-  // Into the net: rebound to the hitter's side and drop.
-  ball.y = NET_Y + (prevBallY > NET_Y ? 0.4 : -0.4);
-  ball.vy = -ball.vy * 0.12;
-  ball.vx *= 0.3;
-  ball.vz = Math.min(ball.vz, 0);
+  // Into the net: the ball pops back off the net and drops on the
+  // hitter's side.
+  ball.y = NET_Y + (prevBallY > NET_Y ? 0.5 : -0.5);
+  ball.vy = -ball.vy * 0.22;
+  ball.vx *= 0.35;
+  ball.vz = Math.min(ball.vz, 0.5);
   netRebound = true;
 }
 
@@ -346,6 +352,11 @@ function drawChargeMeter(ctx) {
   ctx.fillRect(x, y, w, h);
   ctx.fillStyle = charge < 0.7 ? '#b8e986' : '#ff8a5e';
   ctx.fillRect(x, y, w * charge, h);
+  if (charge >= 1) {
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+  }
 }
 
 function draw() {

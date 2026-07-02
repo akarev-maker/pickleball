@@ -3,6 +3,7 @@
 // Run: node tests/balance.test.js <easy|medium|hard>
 
 import { installDom } from './dom-stub.js';
+import { COURT_W, COURT_L, NET_Y, KITCHEN_BOTTOM, CENTER_X } from '../rules.js';
 
 const difficulty = process.argv[2] || 'medium';
 
@@ -30,14 +31,16 @@ function setKeys(wanted) {
 function botThink() {
   // Chase the landing spot when the ball is coming and in; let out balls fly;
   // stay behind the kitchen line for balls dropping into it.
-  let tx = 10;
-  let ty = 38;
+  let tx = CENTER_X;
+  let ty = COURT_L - 6;
   if (ball.inFlight && ball.vy > 0) {
     const land = ball.predictLanding();
-    const landsIn = land.x >= 0 && land.x <= 20 && land.y <= 44;
+    const landsIn = land.x >= 0 && land.x <= COURT_W && land.y <= COURT_L;
     if (landsIn) {
       tx = land.x;
-      ty = land.y > 22 && land.y < 29 ? 29.5 : Math.max(land.y, 23.5);
+      ty = land.y > NET_Y && land.y < KITCHEN_BOTTOM
+        ? KITCHEN_BOTTOM + 0.5
+        : Math.max(land.y, NET_Y + 1.5);
     }
   }
   const wanted = new Set();

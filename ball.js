@@ -29,14 +29,18 @@ export class Ball {
 
   // Launches from the current position to land at (tx, ty), reaching roughly
   // apexZ at the top of the arc. Flight time follows from the vertical motion:
-  // rise to the apex, then fall to the ground.
-  launchTo(tx, ty, apexZ) {
+  // rise to the apex, then fall to the ground. timeScale < 1 compresses the
+  // flight (a punched shot): same landing spot, flatter and faster — from a
+  // high contact point it can even be driven downward.
+  launchTo(tx, ty, apexZ, timeScale = 1) {
     const rise = Math.max(apexZ - this.z, 0.5);
-    const vz0 = Math.sqrt(2 * G * rise);
-    const t = (vz0 + Math.sqrt(vz0 * vz0 + 2 * G * this.z)) / G;
+    const vz0Arc = Math.sqrt(2 * G * rise);
+    let t = (vz0Arc + Math.sqrt(vz0Arc * vz0Arc + 2 * G * this.z)) / G;
+    t *= timeScale;
+    // Vertical speed that still lands at z = 0 at time t.
+    this.vz = (0.5 * G * t * t - this.z) / t;
     this.vx = (tx - this.x) / t;
     this.vy = (ty - this.y) / t;
-    this.vz = vz0;
     this.inFlight = true;
     this.launchId++;
   }
