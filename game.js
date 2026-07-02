@@ -247,7 +247,7 @@ function handleHits() {
     if (result) return result;
     const shot = cpu.chooseShot(ball, player);
     applyStress(shot, cpu, cpu.difficulty.aimError * 0.5);
-    ball.launchTo(shot.tx, shot.ty, shot.apexZ);
+    ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1);
     netRebound = false;
     return null;
   }

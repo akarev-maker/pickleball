@@ -4,12 +4,7 @@ import {
   COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, MARGIN, CENTER_X,
 } from './court.js';
 import { drawFigure, REACH, MAX_HIT_HEIGHT } from './player.js';
-
-const DIFFICULTIES = {
-  easy: { speed: 9, reaction: 0.45, aimError: 4 },
-  medium: { speed: 12, reaction: 0.25, aimError: 3 },
-  hard: { speed: 14, reaction: 0.12, aimError: 1.8 },
-};
+import { QUICK_PROFILES } from './ladder.js';
 
 export class Cpu {
   constructor() {
@@ -21,7 +16,13 @@ export class Cpu {
   }
 
   setDifficulty(name) {
-    this.difficulty = DIFFICULTIES[name] || DIFFICULTIES.medium;
+    this.setProfile(QUICK_PROFILES[name] || QUICK_PROFILES.medium);
+  }
+
+  // A personality profile: speed, reaction, aimError, dinkiness, aggression,
+  // lobbiness (see ladder.js). Kept on `difficulty` for existing callers.
+  setProfile(profile) {
+    this.difficulty = profile;
   }
 
   reset() {
@@ -73,30 +74,43 @@ export class Cpu {
       && ball.z < MAX_HIT_HEIGHT;
   }
 
-  // Picks a target on the player's side, biased away from the player,
-  // with difficulty-scaled aim error.
+  // Picks a target on the player's side shaped by personality: lobbers go
+  // deep and high, dinkers play the kitchen, aggressive types drive flat
+  // and fast. Aim error is deliberately unclamped: wild shots go out.
   chooseShot(ball, playerPos) {
-    const { aimError } = this.difficulty;
+    const p = this.difficulty;
+    const err = p.aimError;
 
-    // Dink when close to the kitchen line: drop it just past the net.
-    const atKitchenLine = this.y > KITCHEN_TOP - 3;
-    if (atKitchenLine && Math.random() < 0.55) {
+    if (Math.random() < p.lobbiness * 0.35) {
       return {
-        tx: clampX(rand(4, COURT_W - 4) + rand(-aimError, aimError)),
-        ty: NET_Y + rand(2.5, KITCHEN_BOTTOM - NET_Y - 0.5),
-        apexZ: 4.5,
+        tx: clampX(rand(3, COURT_W - 3) + rand(-err, err)),
+        ty: rand(COURT_L - 8, COURT_L - 2) + rand(-err, err),
+        apexZ: rand(9, 11),
+        timeScale: 1,
       };
     }
 
-    // Drive toward the half away from the player.
+    const atKitchenLine = this.y > KITCHEN_TOP - 3;
+    if (atKitchenLine && Math.random() < p.dinkiness * 0.8) {
+      return {
+        tx: clampX(rand(4, COURT_W - 4) + rand(-err, err)),
+        ty: NET_Y + rand(2.5, KITCHEN_BOTTOM - NET_Y - 0.5),
+        apexZ: 4.5,
+        timeScale: 1,
+      };
+    }
+
     const awayX = playerPos.x < CENTER_X
       ? rand(CENTER_X + 2, COURT_W - 2)
       : rand(2, CENTER_X - 2);
-    // Deliberately unclamped: aim error can and should send balls out.
+    // Like the player's power throttle: you can only flatten a ball you
+    // take high — driving a low ball flat just finds the net.
+    const agg = p.aggression * Math.max(0.3, Math.min(1, ball.z / 4));
     return {
-      tx: awayX + rand(-aimError, aimError),
-      ty: rand(KITCHEN_BOTTOM + 2, COURT_L - 1) + rand(-aimError, aimError),
-      apexZ: rand(4.3, 5.5),
+      tx: awayX + rand(-err, err),
+      ty: rand(KITCHEN_BOTTOM + 2, COURT_L - 1) + rand(-err, err),
+      apexZ: Math.max(3.6, rand(4.3, 5.5) - agg * 0.8),
+      timeScale: 1 - 0.25 * agg,
     };
   }
 
