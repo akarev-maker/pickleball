@@ -15,7 +15,7 @@ export async function runBotGame({
 } = {}) {
   const dom = installDom();
   await import('../game.js');
-  const { ball, player, cpu, getState, getScore } = window.__pickleball;
+  const { ball, player, cpu, getState, getScore, getRally } = window.__pickleball;
 
   if (tournament) {
     dom.elements['mode-tournament'].onclick();
@@ -60,13 +60,30 @@ export async function runBotGame({
     if (ty > player.y + 0.5) wanted.add('down');
     setKeys(wanted);
 
-    // Hold Space only to serve (or always, to test max-power play). Any key
-    // press also skips replays.
-    if (getState() === 'serving' || getState() === 'replay' || alwaysCharge) {
+    // Space: hold to serve/charge, RELEASE to swing (manual-swing scheme).
+    // The bot releases when the incoming ball is in reach; with alwaysCharge
+    // it holds through the rally and releases at contact (max power).
+    const st = getState();
+    const dist = Math.hypot(ball.x - player.x, ball.y - player.y);
+    // Respect the two-bounce rule: hits 2 and 3 must be played off a bounce.
+    const rally = getRally();
+    const mustWait = rally && !rally.bouncedSinceLastHit
+      && (rally.hitCount === 1 || rally.hitCount === 2);
+    const swingNow = st === 'rally' && ball.inFlight && ball.vy > 0
+      && dist < 2.2 && ball.z < 6 && !mustWait;
+    if (st === 'serving' || st === 'replay') {
       if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); }
-    } else if (held.has('Space')) {
-      dom.keyUp('Space');
-      held.delete('Space');
+    } else if (st === 'rally') {
+      if (swingNow) {
+        if (held.has('Space')) { dom.keyUp('Space'); held.delete('Space'); }
+        else { dom.keyDown('Space'); held.add('Space'); }
+      } else if (alwaysCharge) {
+        if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); }
+      } else if (held.has('Space')) {
+        // Release right after serving — the serve grace absorbs it.
+        dom.keyUp('Space');
+        held.delete('Space');
+      }
     }
 
     time += FRAME;

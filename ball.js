@@ -114,10 +114,13 @@ export class Ball {
 
     // Shadow at the true court position
     const sp = view.toPx(this.x, this.y);
-    const s = view.scaleAt(this.y);
+    const s = view.mode === '3d'
+      ? Math.max(view.scaleAt(this.y), view.scale * 0.55)
+      : view.scaleAt(this.y);
+    const r = s * 0.42;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
-    ctx.ellipse(sp.px, sp.py, s * 0.32, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(sp.px, sp.py, r, r * 0.6, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Ball, offset upward with height; tinted by spin while flying
@@ -127,10 +130,19 @@ export class Ball {
     else if (this.inFlight && this.spin < -0.15) color = '#a7e9ff';
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(sp.px, by, s * 0.32, 0, Math.PI * 2);
+    ctx.arc(sp.px, by, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
+    // Pickleball holes
+    if (r > 4) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      for (const [hx, hy] of [[-0.35, -0.2], [0.25, -0.35], [0.05, 0.3]]) {
+        ctx.beginPath();
+        ctx.arc(sp.px + hx * r, by + hy * r, r * 0.16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 }

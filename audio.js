@@ -93,6 +93,11 @@ export const sfx = {
     note('sine', 90, 40, 0.15, 0.2);
     noise(0.12, 900, 1.2, 0.1);
   },
+  // Swing and a miss: just air.
+  whiff() {
+    if (!ready()) return;
+    noise(0.12, 700, 0.7, 0.08, 0, 0.02);
+  },
   // A soft touch shot: same pop, much gentler.
   dink() {
     if (!ready()) return;

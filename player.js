@@ -53,27 +53,77 @@ export class Player {
   }
 }
 
-// Shared by player and CPU: a circle body with a paddle dot on the net side.
-// facing: -1 draws the paddle above (toward the net for the player),
-// +1 below (toward the net for the CPU).
+// Shared by player and CPU.
+// facing: -1 = seen from behind (bottom side), +1 = facing the viewer (top).
 export function drawFigure(ctx, view, x, y, color, facing) {
-  const scale = view.scaleAt(y);
   const p = view.toPx(x, y);
-  // In the 3D view the body stands on the court instead of lying on it.
-  const lift = view.mode === '3d' ? scale * 1.1 : 0;
 
+  if (view.mode === '3d') {
+    // Readability floor: far players never shrink into dots.
+    const s = Math.max(view.scaleAt(y), view.scale * 0.55);
+    // Shadow on the court
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.beginPath();
+    ctx.ellipse(p.px, p.py, s * 0.75, s * 0.26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Legs
+    ctx.strokeStyle = '#2b3a33';
+    ctx.lineWidth = Math.max(2, s * 0.24);
+    for (const lx of [-0.3, 0.3]) {
+      ctx.beginPath();
+      ctx.moveTo(p.px + lx * s, p.py - s * 0.9);
+      ctx.lineTo(p.px + lx * s * 1.2, p.py);
+      ctx.stroke();
+    }
+    // Body (jersey)
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(p.px, p.py - s * 1.5, s * 0.62, s * 0.85, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Head
+    ctx.fillStyle = '#e8b98a';
+    ctx.beginPath();
+    ctx.arc(p.px, p.py - s * 2.7, s * 0.38, 0, Math.PI * 2);
+    ctx.fill();
+    // Arm + paddle on the racket side
+    const side = facing === -1 ? 1 : -1;
+    const hx = p.px + side * s * 0.95;
+    const hy = p.py - s * 1.55;
+    ctx.strokeStyle = '#e8b98a';
+    ctx.lineWidth = Math.max(2, s * 0.2);
+    ctx.beginPath();
+    ctx.moveTo(p.px + side * s * 0.45, p.py - s * 1.8);
+    ctx.lineTo(hx, hy);
+    ctx.stroke();
+    ctx.strokeStyle = '#7a4a2b';
+    ctx.lineWidth = Math.max(2, s * 0.14);
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx + side * s * 0.2, hy - s * 0.35);
+    ctx.stroke();
+    ctx.fillStyle = '#31456b';
+    ctx.beginPath();
+    ctx.ellipse(hx + side * s * 0.28, hy - s * 0.7, s * 0.32, s * 0.42, side * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    return;
+  }
+
+  // Top-down: circle body with a paddle dot on the net side.
+  const scale = view.scaleAt(y);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
   ctx.beginPath();
-  ctx.ellipse(p.px, p.py + (lift ? 0 : scale * 0.35), scale * 0.75, scale * 0.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(p.px, p.py + scale * 0.35, scale * 0.75, scale * 0.3, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = color;
   ctx.beginPath();
-  if (lift) {
-    ctx.ellipse(p.px, p.py - lift, scale * 0.8, scale * 1.1, 0, 0, Math.PI * 2);
-  } else {
-    ctx.arc(p.px, p.py, scale * 0.8, 0, Math.PI * 2);
-  }
+  ctx.arc(p.px, p.py, scale * 0.8, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.lineWidth = 2;
@@ -81,6 +131,6 @@ export function drawFigure(ctx, view, x, y, color, facing) {
 
   ctx.fillStyle = '#3a2c1e';
   ctx.beginPath();
-  ctx.arc(p.px + scale * 0.65, p.py - lift + facing * scale * 0.55, scale * 0.32, 0, Math.PI * 2);
+  ctx.arc(p.px + scale * 0.65, p.py + facing * scale * 0.55, scale * 0.32, 0, Math.PI * 2);
   ctx.fill();
 }

@@ -43,7 +43,7 @@ or `npm start`, which runs the same command.
 |-------|--------|
 | Arrow keys / WASD | Move |
 | Mouse | Aim — the crosshair is where your shots (and serves) go |
-| Hold mouse button / Space | Charge power: flatter, faster, riskier shots |
+| Hold + release Space / mouse button | Swing: hold to charge power, release as the ball arrives. Mistimed swings whiff. |
 | Shift (held at contact) | Dink — a soft drop shot into the opponent's kitchen |
 | E / Q (held at contact) | Topspin / slice. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. |
 | Space | Serve |
@@ -52,8 +52,9 @@ or `npm start`, which runs the same command.
 | M | Mute |
 | R | Quit to menu |
 
-You swing automatically whenever the ball is within reach. Clean, planted
-hits go where you aim; hits at full stretch or on the run scatter. The net is
+Clean, planted hits go where you aim; hits at full stretch or on the run
+scatter. Swinging before a required bounce (the serve and its return) is a
+fault, and volleying from the kitchen still costs you the point. The net is
 physical: tape clips can tumble over and stay live, netted balls drop back
 and cost you the point. Balls touching a line are in.
 

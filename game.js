@@ -52,7 +52,10 @@ window.addEventListener('keydown', (e) => {
   if (state === 'replay') replaySkip = true;
   keys.add(e.code);
 });
-window.addEventListener('keyup', (e) => keys.delete(e.code));
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (e.code === 'Space' && state === 'rally') swingQueued = true;
+});
 
 // Mouse: crosshair aiming + hold-to-charge power.
 const aim = { x: CENTER_X, y: 9, active: false };
@@ -64,7 +67,10 @@ canvas.addEventListener('mousemove', (e) => {
   aim.active = true;
 });
 canvas.addEventListener('mousedown', () => { initAudio(); mouseHeld = true; });
-window.addEventListener('mouseup', () => { mouseHeld = false; });
+window.addEventListener('mouseup', () => {
+  mouseHeld = false;
+  if (state === 'rally') swingQueued = true;
+});
 
 const ball = new Ball();
 const player = new Player();
@@ -94,6 +100,8 @@ let prevBallY = 0;
 let prevBallZ = 0;
 let charge = 0; // 0..1 shot power, held Space / mouse button charges it
 let netRebound = false; // ball fell back off the net; label the point 'Netted!'
+let swingQueued = false; // set on Space/mouse release during a rally
+let swingCooldown = 0; // whiff recovery; also grace right after serving
 
 function rand(min, max) {
   return min + Math.random() * (max - min);
@@ -327,6 +335,8 @@ function serve() {
   prevBallY = ball.y;
   prevBallZ = ball.z;
   netRebound = false;
+  swingQueued = false;
+  swingCooldown = 0.5; // grace: releasing the serve keypress isn't a swing
   state = 'rally';
 }
 
@@ -451,25 +461,37 @@ function botHit(bot, teamSide, target) {
 
 function handleHits() {
   const playable = ballIsPlayable();
-  // Player hits balls coming toward them (vy > 0), CPUs the reverse; no
-  // team may hit its own shot twice (e.g. after it rebounds off the net).
-  if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER && !mustLetBounce()) {
-    if (player.canReach(ball)) {
-      const volley = !rally.bouncedSinceLastHit;
-      const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
-      if (result) return result;
-      const shot = playerShot();
-      applyStress(shot, player, 1.2 + 0.6 * shot.power);
-      if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
-      if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
-      ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
-      netRebound = false;
-      return null;
+
+  // The player swings manually: release Space / the mouse button with the
+  // ball in reach. Mistimed releases whiff (and dump the charge); swinging
+  // early on a required bounce is a real fault — the rules call it.
+  if (swingQueued) {
+    swingQueued = false;
+    if (swingCooldown <= 0) {
+      if (ball.inFlight && ball.vy > 0 && rally.lastHitter !== PLAYER
+          && player.canReach(ball)) {
+        const volley = !rally.bouncedSinceLastHit;
+        const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
+        if (result) return result;
+        const shot = playerShot();
+        applyStress(shot, player, 1.2 + 0.6 * shot.power);
+        if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
+        if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
+        ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
+        netRebound = false;
+        return null;
+      }
+      swingCooldown = 0.35;
+      charge = 0;
+      sfx.whiff();
     }
-    if (variant === 'doubles') {
-      const r = botHit(partner, PLAYER, cpu);
-      if (r !== undefined) return r;
-    }
+  }
+
+  // Your doubles partner still plays automatically.
+  if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER && !mustLetBounce()
+      && variant === 'doubles' && !player.canReach(ball)) {
+    const r = botHit(partner, PLAYER, cpu);
+    if (r !== undefined) return r;
   }
 
   if (ball.vy < 0 && playable && rally.lastHitter !== CPU && !mustLetBounce()) {
@@ -693,6 +715,7 @@ function frame(now) {
   } else if (state === 'rally') {
     const charging = keys.has('Space') || mouseHeld;
     charge = charging ? Math.min(1, charge + dt / 0.8) : Math.max(0, charge - dt * 0.5);
+    swingCooldown = Math.max(0, swingCooldown - dt);
     updateRally(dt);
   } else if (state === 'replay') {
     replayIdx += dt * 60 * 0.4; // 40% speed
@@ -747,7 +770,12 @@ function frame(now) {
 }
 
 // Debug/test handle (used by tests/balance.test.js and handy in devtools).
-window.__pickleball = { ball, player, cpu, getState: () => state, getScore: () => score };
+window.__pickleball = {
+  ball, player, cpu,
+  getState: () => state,
+  getScore: () => score,
+  getRally: () => rally,
+};
 
 applyCosmetics();
 ui.updateScore(score, score.servingSide);

@@ -125,19 +125,36 @@ function quad(ctx, view, x1, y1, x2, y2) {
 export function drawCourt(ctx, view) {
   // Apron / backdrop
   if (view.mode === '3d') {
-    ctx.fillStyle = '#182720'; // night sky above the horizon
+    // Evening sky gradient down to the horizon
+    const sky = ctx.createLinearGradient(0, 0, 0, view.horizon);
+    sky.addColorStop(0, '#0e1713');
+    sky.addColorStop(1, '#27443a');
+    ctx.fillStyle = sky;
     ctx.fillRect(0, 0, view.width, view.horizon + 2);
     ctx.fillStyle = '#2e6b4f';
     ctx.fillRect(0, view.horizon + 2, view.width, view.height);
+    // Backstop fence behind the far court
+    const fenceBottom = view.toPx(0, -MARGIN).py;
+    const fenceH = Math.max(fenceBottom - view.horizon, 12);
+    ctx.fillStyle = 'rgba(16, 30, 24, 0.55)';
+    ctx.fillRect(0, view.horizon, view.width, fenceH);
+    ctx.strokeStyle = 'rgba(180, 200, 190, 0.14)';
+    ctx.lineWidth = 2;
+    for (let px = 20; px < view.width; px += 46) {
+      ctx.beginPath();
+      ctx.moveTo(px, view.horizon);
+      ctx.lineTo(px, view.horizon + fenceH);
+      ctx.stroke();
+    }
   } else {
     ctx.fillStyle = '#2e6b4f';
     ctx.fillRect(0, 0, view.width, view.height);
   }
 
-  // Court surface + kitchen tint
+  // Court surface + a clearly distinct kitchen (non-volley zone)
   ctx.fillStyle = '#3f8ac2';
   quad(ctx, view, 0, 0, COURT_W, COURT_L);
-  ctx.fillStyle = '#5aa0d0';
+  ctx.fillStyle = '#6db3dd';
   quad(ctx, view, 0, KITCHEN_TOP, COURT_W, KITCHEN_BOTTOM);
 
   // Lines
@@ -147,8 +164,11 @@ export function drawCourt(ctx, view) {
   line(ctx, view, 0, COURT_L, COURT_W, COURT_L);
   line(ctx, view, 0, 0, 0, COURT_L);
   line(ctx, view, COURT_W, 0, COURT_W, COURT_L);
+  // Kitchen lines drawn heavier — they matter.
+  ctx.lineWidth = Math.max(3, view.scale * 0.24);
   line(ctx, view, 0, KITCHEN_TOP, COURT_W, KITCHEN_TOP);
   line(ctx, view, 0, KITCHEN_BOTTOM, COURT_W, KITCHEN_BOTTOM);
+  ctx.lineWidth = Math.max(2, view.scale * 0.17);
   // Centerlines split the service areas only (not the kitchen)
   line(ctx, view, CENTER_X, 0, CENTER_X, KITCHEN_TOP);
   line(ctx, view, CENTER_X, KITCHEN_BOTTOM, CENTER_X, COURT_L);
