@@ -36,6 +36,7 @@ export async function runBotGame({
   let time = 0;
   const FRAME = 1000 / 60;
   let frames = 0;
+  let serveFrames = 0;
   const maxFrames = 60 * maxSeconds;
 
   while (frames < maxFrames) {
@@ -72,7 +73,15 @@ export async function runBotGame({
     const swingNow = st === 'rally' && ball.inFlight && ball.vy > 0
       && dist < 2.2 && ball.z < 6 && !mustWait;
     if (st === 'serving' || st === 'replay') {
-      if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); }
+      if (!held.has('Space')) {
+        dom.keyDown('Space');
+        held.add('Space');
+        serveFrames = 0;
+      } else if (st === 'serving' && ++serveFrames > 20) {
+        // Charge-and-release serve: release after ~a third of a second.
+        dom.keyUp('Space');
+        held.delete('Space');
+      }
     } else if (st === 'rally') {
       if (swingNow) {
         if (held.has('Space')) { dom.keyUp('Space'); held.delete('Space'); }

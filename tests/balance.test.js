@@ -16,7 +16,6 @@ await import('../game.js');
 const { ball, player, getState } = window.__pickleball;
 
 dom.startGame(difficulty);
-dom.keyDown('Space');
 
 const DIR_KEYS = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' };
 const held = new Set();
@@ -56,10 +55,16 @@ const FRAME = 1000 / 60;
 let frames = 0;
 const MAX_FRAMES = 60 * 600; // 10 simulated minutes
 
+let serveFrames = 0;
 while (frames < MAX_FRAMES) {
   botThink();
-  // Hold Space only to serve (unless testing always-charged play).
-  if (getState() === 'serving' || alwaysCharge) {
+  // Press-and-release Space to serve; hold through rallies only when
+  // testing always-charged play.
+  const st = getState();
+  if (st === 'serving') {
+    if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); serveFrames = 0; }
+    else if (++serveFrames > 20) { dom.keyUp('Space'); held.delete('Space'); }
+  } else if (alwaysCharge) {
     if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); }
   } else if (held.has('Space')) {
     dom.keyUp('Space');

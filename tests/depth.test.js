@@ -110,5 +110,29 @@ test('skinny court narrows the post span', () => {
   assertEqual(hit && hit.kind, 'around');
 });
 
+// --- charged serve, through the real game loop ---
+
+import { installDom } from './dom-stub.js';
+
+const dom = installDom();
+await import('../game.js');
+const { ball: gameBall, getState } = window.__pickleball;
+
+dom.startGame('medium');
+let clock = 0;
+const step = () => { clock += 1000 / 60; dom.step(clock); };
+
+test('holding SPACE charges; releasing fires a flat, fast serve', () => {
+  assertEqual(getState(), 'serving');
+  dom.keyDown('Space');
+  for (let i = 0; i < 90; i++) step(); // 1.5 s — charge caps at full
+  assertEqual(getState(), 'serving', 'holding must not serve');
+  dom.keyUp('Space');
+  step();
+  assertEqual(getState(), 'rally', 'release serves');
+  const t = gameBall.predictLanding().t;
+  assert(t < 1.05, `full-charge serve flight ${t.toFixed(2)}s (tap is ~1.4s)`);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

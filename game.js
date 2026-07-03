@@ -9,6 +9,7 @@ import {
   COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT,
 } from './court.js';
 import { Ball } from './ball.js';
+import { SMASH_HEIGHT, serveParams, lobParams, smashParams } from './shots.js';
 import { Player } from './player.js';
 import { Cpu } from './cpu.js';
 import * as ui from './ui.js';
@@ -163,6 +164,8 @@ let replayIdx = 0;
 let replaySkip = false;
 let serveX = 0;
 let serveTimer = 0;
+let serveCharging = false;
+let demoAutoServe = false; // #demo dev mode: serve without input
 let bannerTimer = 0;
 let prevBallX = 0;
 let prevBallY = 0;
@@ -373,7 +376,9 @@ function startServe() {
     player.y = COURT_L + 1.5;
     cpu.reset();
     if (variant !== 'doubles') cpu.x = variant === 'skinny' ? serveX : COURT_W - serveX;
-    ui.showBanner(touchMode ? 'Your serve — tap DRIVE' : 'Your serve — press SPACE (hold ←/→ to aim)', 0);
+    ui.showBanner(touchMode
+      ? 'Your serve — hold DRIVE to charge'
+      : 'Your serve — hold SPACE to charge, release to serve', 0);
   } else {
     serveX = variant === 'skinny' ? CENTER_X : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
     cpu.reset();
@@ -391,10 +396,11 @@ function startServe() {
   }
   const sy = server === PLAYER ? COURT_L + 1.5 : -1.5;
   ball.placeAt(serveX, sy, 2.5);
+  serveCharging = false;
   state = 'serving';
 }
 
-function serve() {
+function serve(power = 0.25) {
   const server = score.servingSide;
   rally = new Rally(server);
   rally.recordHit(server, { volley: false, inKitchen: false });
@@ -408,23 +414,32 @@ function serve() {
   const minTx = courtLeft() + 1;
   const maxTx = courtRight() - 1;
   if (server === PLAYER) {
+    const sp = serveParams(power);
+    const e = sp.err;
     let tx;
     let ty;
     if (aim.active) {
-      tx = clamp(aim.x + rand(-1, 1), minTx, maxTx);
-      ty = clamp(aim.y + rand(-1, 1), 1, KITCHEN_TOP - 0.5);
+      // Loose clamps: with enough scatter a hot serve can fly long or
+      // drop short into the kitchen — both real service faults.
+      tx = clamp(aim.x + rand(-e, e), minTx, maxTx);
+      ty = clamp(aim.y + rand(-e, e), -2, KITCHEN_TOP + 2);
     } else {
       let steer = 0;
       if (keys.has('ArrowLeft') || keys.has('KeyA')) steer -= 1;
       if (keys.has('ArrowRight') || keys.has('KeyD')) steer += 1;
-      tx = clamp(baseTx + steer * 3 + rand(-1.2, 1.2), minTx, maxTx);
-      ty = rand(6, 12);
+      tx = clamp(baseTx + steer * 3 + rand(-e, e), minTx, maxTx);
+      ty = rand(6, 12) - sp.depth + rand(-e, e) * 0.5;
     }
-    ball.launchTo(tx, ty, rand(7.5, 9));
+    ball.launchTo(tx, ty, sp.apexZ + rand(-0.3, 0.3), sp.timeScale);
   } else {
-    const err = cpu.difficulty.aimError;
+    // CPU serve power rides its aggression: bangers bomb serves (and
+    // sometimes fault); patient types float them in.
+    const cpuPower = Math.min(1, cpu.difficulty.aggression + 0.15);
+    const sp = serveParams(cpuPower);
+    const err = cpu.difficulty.aimError * (0.5 + 0.5 * cpuPower);
     const tx = clamp(baseTx + rand(-err, err), minTx, maxTx);
-    ball.launchTo(tx, clamp(rand(33, 41) + rand(-err, err), 30, COURT_L + 1), rand(7.5, 9));
+    const ty = clamp(rand(33, 41) + sp.depth * 0.5 + rand(-err, err), 30, COURT_L + 1.5);
+    ball.launchTo(tx, ty, sp.apexZ + rand(-0.3, 0.3), sp.timeScale);
   }
   prevBallX = ball.x;
   prevBallY = ball.y;
@@ -826,7 +841,22 @@ function frame(now) {
     if (introTimer <= 0) startServe();
   } else if (state === 'serving') {
     if (score.servingSide === PLAYER) {
-      if (keys.has('Space')) serve();
+      // Hold to charge, release to serve. Power trades the safe high arc
+      // for depth and pace at the cost of scatter — see serveParams.
+      if (demoAutoServe) {
+        serve(0.5);
+      } else {
+        const holding = keys.has('Space') || mouseHeld;
+        if (holding) {
+          serveCharging = true;
+          charge = Math.min(1, charge + dt / 0.8);
+        } else if (serveCharging) {
+          serveCharging = false;
+          const power = Math.max(0.25, charge);
+          charge = 0;
+          serve(power);
+        }
+      }
     } else {
       cpu.update(dt, ball);
       player.update(dt, keys);
@@ -919,8 +949,8 @@ const hash = window.location?.hash || '';
 if (hash.startsWith('#demo')) {
   // Dev/demo mode: start immediately on medium and auto-serve.
   if (hash.includes('3d') && viewMode !== '3d') toggleView();
+  demoAutoServe = true;
   ui.hideOverlays();
-  keys.add('Space');
   startGame('medium', { variant: hash.includes('skinny') ? 'skinny' : 'singles' });
 } else {
   showMainMenu();

@@ -6,15 +6,27 @@ import { installDom } from './dom-stub.js';
 
 const dom = installDom();
 await import('../game.js');
+const { getState } = window.__pickleball;
 
 dom.elements['mode-doubles'].onclick(); // select the doubles variant
 dom.startGame('medium'); // difficulty click starts the match
-dom.keyDown('Space'); // auto-serve (and skip replays)
 
 let time = 0;
 let frames = 0;
+let spaceHeld = false;
+let holdFrames = 0;
 try {
   while (frames < 60 * 180) {
+    // Press-and-release Space to serve (and to skip replays); the player
+    // otherwise stands still — the CPU partner does the playing.
+    const st = getState();
+    if (st === 'serving' || st === 'replay') {
+      if (!spaceHeld) { dom.keyDown('Space'); spaceHeld = true; holdFrames = 0; }
+      else if (st === 'serving' && ++holdFrames > 20) { dom.keyUp('Space'); spaceHeld = false; }
+    } else if (spaceHeld) {
+      dom.keyUp('Space');
+      spaceHeld = false;
+    }
     time += 1000 / 60;
     dom.step(time);
     frames++;
