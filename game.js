@@ -5,8 +5,8 @@ import {
   PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen, LINE_TOL,
 } from './rules.js';
 import {
-  setupCanvas, drawCourt, drawNet,
-  COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X,
+  setupCanvas, drawCourt, drawNet, netCrossing,
+  COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT,
 } from './court.js';
 import { Ball } from './ball.js';
 import { Player } from './player.js';
@@ -20,7 +20,6 @@ import {
   recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors,
 } from './progress.js';
 
-const NET_HEIGHT = 3; // ft
 const BANNER_SECS = 2;
 const CPU_SERVE_DELAY = 1.2;
 
@@ -165,8 +164,10 @@ let replaySkip = false;
 let serveX = 0;
 let serveTimer = 0;
 let bannerTimer = 0;
+let prevBallX = 0;
 let prevBallY = 0;
 let prevBallZ = 0;
+let atpShot = false; // last shot went around the post (outside the net span)
 let charge = 0; // 0..1 shot power, held Space / mouse button charges it
 let netRebound = false; // ball fell back off the net; label the point 'Netted!'
 let swingWindow = 0; // buffered swing: connects if the ball arrives in time
@@ -425,9 +426,11 @@ function serve() {
     const tx = clamp(baseTx + rand(-err, err), minTx, maxTx);
     ball.launchTo(tx, clamp(rand(33, 41) + rand(-err, err), 30, COURT_L + 1), rand(7.5, 9));
   }
+  prevBallX = ball.x;
   prevBallY = ball.y;
   prevBallZ = ball.z;
   netRebound = false;
+  atpShot = false;
   swingWindow = 0;
   swingCooldown = 0.5; // grace: releasing the serve keypress isn't a swing
   state = 'rally';
@@ -551,6 +554,7 @@ function botHit(bot, teamSide, target) {
   sfx.paddle(0.25);
   ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
   netRebound = false;
+  atpShot = false;
   return null;
 }
 
@@ -574,6 +578,7 @@ function handleHits() {
       if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
       ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
       netRebound = false;
+      atpShot = false;
       return null;
     }
   }
@@ -623,19 +628,29 @@ function handleBounce() {
 // The net is physical: a ball clipping the tape may tumble over and stay
 // live (net cord); a ball hit squarely into the net drops back on the
 // hitter's side, where it dies and the normal rules award the point.
+// A ball crossing outside the posts — around the post — never touches
+// the net and stays live at any height.
 function handleNetCrossing() {
-  const crossed = (prevBallY - NET_Y) * (ball.y - NET_Y) < 0;
-  if (!crossed) return;
-  const f = (NET_Y - prevBallY) / (ball.y - prevBallY);
-  const zAtNet = prevBallZ + (ball.z - prevBallZ) * f;
-  if (zAtNet >= NET_HEIGHT) return;
+  const hit = netCrossing(
+    { x: prevBallX, y: prevBallY, z: prevBallZ },
+    ball,
+    courtLeft(),
+    courtRight(),
+  );
+  if (!hit) return;
+
+  if (hit.kind === 'around') {
+    atpShot = true;
+    sfx.ooh();
+    return;
+  }
 
   sfx.net();
   sfx.ooh();
   fx.spawnNet(ball.x, NET_Y);
   fx.shake(0.35);
 
-  if (zAtNet > NET_HEIGHT - 0.45 && Math.random() < 0.35) {
+  if (hit.zAtNet > NET_HEIGHT - 0.45 && Math.random() < 0.35) {
     // Net cord: the ball clips the tape and dribbles over.
     ball.vy *= 0.3;
     ball.vx *= 0.5;
@@ -667,6 +682,7 @@ function updateRally(dt) {
   let result = handleHits();
 
   if (!result) {
+    prevBallX = ball.x;
     prevBallY = ball.y;
     prevBallZ = ball.z;
     const event = ball.update(dt);
@@ -692,6 +708,7 @@ function updateRally(dt) {
 
   if (result) {
     if (netRebound) result.reason = 'Netted!';
+    else if (atpShot) result.reason = `Around the post! ${result.reason}`;
     fx.ring(ball.x, ball.y);
     pendingResult = result;
     replayClip = recorder.clip(1.2);
