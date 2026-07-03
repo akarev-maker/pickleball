@@ -78,7 +78,6 @@ export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {
   const best3Btn = document.getElementById('best3');
   best3Btn.onclick = () => {
     bestOf3 = !bestOf3;
-    best3Btn.textContent = `Best of 3: ${bestOf3 ? 'on' : 'off'}`;
     best3Btn.classList.toggle('on', bestOf3);
   };
   document.getElementById('mode-tournament').onclick = () => {

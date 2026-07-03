@@ -119,7 +119,7 @@ export class Ball {
     const s = view.mode === '3d'
       ? Math.max(view.scaleAt(this.y), view.scale * 0.55)
       : view.scaleAt(this.y);
-    const r = s * 0.42;
+    const r = s * 0.48;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.beginPath();
     ctx.ellipse(sp.px, sp.py, r, r * 0.6, 0, 0, Math.PI * 2);
@@ -134,8 +134,8 @@ export class Ball {
     ctx.beginPath();
     ctx.arc(sp.px, by, r, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.lineWidth = 2;
     ctx.stroke();
     // Pickleball holes
     if (r > 4) {

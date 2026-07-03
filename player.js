@@ -134,7 +134,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
     return;
   }
 
-  // Top-down: circle body with a paddle dot on the net side.
+  // Top-down: circle body with a paddle held out on the net side.
   const scale = view.scaleAt(y);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
   ctx.beginPath();
@@ -149,15 +149,30 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.fillStyle = '#3a2c1e';
-  const dotAngle = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing;
+  // Paddle: a short handle from the body to an angled blade; the stroke
+  // sweeps it across the body, same timing as the 3D arm swing.
+  const ang = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing;
+  const hx = p.px + Math.cos(ang) * scale * 1.05;
+  const hy = p.py + Math.sin(ang) * scale * 1.05;
+  ctx.strokeStyle = '#7a4a2b';
+  ctx.lineWidth = Math.max(2, scale * 0.16);
   ctx.beginPath();
-  ctx.arc(
-    p.px + Math.cos(dotAngle) * scale * 0.85,
-    p.py + Math.sin(dotAngle) * scale * 0.85,
-    scale * 0.32,
+  ctx.moveTo(p.px + Math.cos(ang) * scale * 0.6, p.py + Math.sin(ang) * scale * 0.6);
+  ctx.lineTo(hx, hy);
+  ctx.stroke();
+  ctx.fillStyle = '#31456b';
+  ctx.beginPath();
+  ctx.ellipse(
+    hx + Math.cos(ang) * scale * 0.28,
+    hy + Math.sin(ang) * scale * 0.28,
+    scale * 0.36,
+    scale * 0.27,
+    ang,
     0,
     Math.PI * 2,
   );
   ctx.fill();
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 }

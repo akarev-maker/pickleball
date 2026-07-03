@@ -248,6 +248,37 @@ button.link.on {
   color: var(--accent);
 }
 
+/* Toggle switch riding inside a link-style button (Best of 3). */
+.switch-track {
+  flex: none;
+  width: 30px;
+  height: 17px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #f2f5f3;
+  transition: transform 0.15s ease;
+}
+
+button.switch.on .switch-track {
+  background: var(--accent);
+}
+
+button.switch.on .switch-knob {
+  transform: translateX(13px);
+  background: var(--accent-ink);
+}
+
 #help {
   font-size: 14px;
   color: var(--text-dim);

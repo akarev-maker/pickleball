@@ -2,8 +2,13 @@
 
 const noop = () => {};
 
+const gradientStub = { addColorStop: noop };
 const ctxStub = new Proxy({}, {
-  get: () => noop,
+  get: (_t, prop) => (
+    prop === 'createLinearGradient' || prop === 'createRadialGradient'
+      ? () => gradientStub
+      : noop
+  ),
   set: () => true,
 });
 

@@ -167,6 +167,18 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
   } else {
     ctx.fillStyle = '#2e6b4f';
     ctx.fillRect(0, 0, view.width, view.height);
+    // A darker apron frames the playing surface (the court fills paint
+    // over the middle), plus a soft vignette so the edges recede.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.10)';
+    quad(ctx, view, left - 2.5, -2.5, right + 2.5, COURT_L + 2.5);
+    const vg = ctx.createRadialGradient(
+      view.width / 2, view.height / 2, Math.min(view.width, view.height) * 0.45,
+      view.width / 2, view.height / 2, Math.max(view.width, view.height) * 0.8,
+    );
+    vg.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vg.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, view.width, view.height);
   }
 
   // Court surface + a clearly distinct kitchen (non-volley zone)
