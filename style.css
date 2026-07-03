@@ -133,13 +133,45 @@ canvas {
   margin-bottom: 22px;
 }
 
-.difficulty,
 .modes {
   display: flex;
   gap: 12px;
   justify-content: center;
   margin-bottom: 20px;
   flex-wrap: wrap;
+}
+
+#mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+#mode-grid button {
+  width: 100%;
+}
+
+.difficulty {
+  margin-bottom: 22px;
+}
+
+#difficulty-title {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.difficulty-options {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
 button {
@@ -175,10 +207,6 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
-button svg {
-  flex: none;
-}
-
 button.secondary {
   background: transparent;
   color: var(--accent);
@@ -193,21 +221,63 @@ button.secondary.on {
   background: rgba(184, 233, 134, 0.22);
 }
 
+.menu-links {
+  display: flex;
+  gap: 22px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+button.link {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  padding: 4px 2px;
+  min-height: 0;
+}
+
+button.link:hover {
+  background: transparent;
+  color: var(--accent);
+}
+
+button.link.on {
+  background: transparent;
+  color: var(--accent);
+}
+
 #help {
-  font-size: 14.5px;
+  font-size: 14px;
   color: var(--text-dim);
   text-align: left;
   line-height: 1.65;
 }
 
-.extras {
-  margin-top: -6px;
+#help summary {
+  cursor: pointer;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  list-style: none;
+  opacity: 0.75;
 }
 
-.extras button {
-  font-size: 14px;
-  padding: 7px 14px;
-  min-height: 38px;
+#help summary::-webkit-details-marker {
+  display: none;
+}
+
+#help summary:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+#help[open] summary {
+  margin-bottom: 10px;
 }
 
 .stat-row {

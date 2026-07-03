@@ -53,17 +53,28 @@ export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {
   hideOverlays();
   menuEl.classList.remove('hidden');
 
-  // Quick Play, Doubles, and Skinny share the difficulty row; the chosen
-  // variant and the Best-of-3 toggle ride along with the difficulty pick.
+  // Quick Play, Doubles, and Skinny share the difficulty step; picking one
+  // swaps the mode grid for the difficulty row, and the chosen variant and
+  // Best-of-3 toggle ride along with the difficulty pick.
+  const modeGrid = document.getElementById('mode-grid');
+  const difficultyTitle = document.getElementById('difficulty-title');
+  difficultyRow.classList.add('hidden');
+  modeGrid.classList.remove('hidden');
   let variant = 'singles';
   let bestOf3 = false;
-  const reveal = (v) => {
+  const reveal = (v, label) => {
     variant = v;
+    modeGrid.classList.add('hidden');
     difficultyRow.classList.remove('hidden');
+    difficultyTitle.textContent = label;
   };
-  document.getElementById('mode-quick').onclick = () => reveal('singles');
-  document.getElementById('mode-doubles').onclick = () => reveal('doubles');
-  document.getElementById('mode-skinny').onclick = () => reveal('skinny');
+  document.getElementById('mode-quick').onclick = () => reveal('singles', 'Quick Play');
+  document.getElementById('mode-doubles').onclick = () => reveal('doubles', 'Doubles');
+  document.getElementById('mode-skinny').onclick = () => reveal('skinny', 'Skinny Singles');
+  document.getElementById('difficulty-back').onclick = () => {
+    difficultyRow.classList.add('hidden');
+    modeGrid.classList.remove('hidden');
+  };
   const best3Btn = document.getElementById('best3');
   best3Btn.onclick = () => {
     bestOf3 = !bestOf3;

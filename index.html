@@ -16,32 +16,31 @@
       <div id="menu" class="overlay">
         <h1>Pickleball</h1>
         <p class="tagline">First to 11, win by 2. Mind the kitchen.</p>
-        <div class="modes">
-          <button id="mode-tournament">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9a6 6 0 0 0 12 0V3H6z"/><path d="M6 5H3a3 3 0 0 0 3 4"/><path d="M18 5h3a3 3 0 0 1-3 4"/><path d="M12 15v3"/><path d="M8 21h8"/></svg>
-            Tournament
-          </button>
-          <button id="mode-quick">Quick Play</button>
-        </div>
-        <div class="modes">
+        <div id="mode-grid">
+          <button id="mode-tournament">Tournament</button>
+          <button id="mode-quick" class="secondary">Quick Play</button>
           <button id="mode-doubles" class="secondary">Doubles</button>
           <button id="mode-skinny" class="secondary">Skinny Singles</button>
         </div>
         <div class="difficulty hidden" id="difficulty-row">
-          <button data-difficulty="easy">Easy</button>
-          <button data-difficulty="medium">Medium</button>
-          <button data-difficulty="hard">Hard</button>
-          <button id="best3" class="secondary">Best of 3: off</button>
+          <p id="difficulty-title"></p>
+          <div class="difficulty-options">
+            <button data-difficulty="easy">Easy</button>
+            <button data-difficulty="medium">Medium</button>
+            <button data-difficulty="hard">Hard</button>
+          </div>
+          <div class="menu-links">
+            <button id="best3" class="link">Best of 3: off</button>
+            <button id="difficulty-back" class="link">Back</button>
+          </div>
         </div>
-        <div class="modes extras">
-          <button id="menu-daily" class="secondary">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            <span id="menu-daily-label">Daily</span>
-          </button>
-          <button id="menu-stats" class="secondary">Stats</button>
-          <button id="menu-locker" class="secondary">Locker</button>
+        <div class="menu-links">
+          <button id="menu-daily" class="link"><span id="menu-daily-label">Daily</span></button>
+          <button id="menu-stats" class="link">Stats</button>
+          <button id="menu-locker" class="link">Locker</button>
         </div>
-        <div id="help">
+        <details id="help">
+          <summary>Controls</summary>
           <p><strong>Move:</strong> Arrows / WASD &nbsp;·&nbsp; <strong>Aim:</strong> mouse</p>
           <p><strong>Swing:</strong> hold a stroke button to charge power,
              release to hit as the ball arrives</p>
@@ -49,7 +48,7 @@
              &nbsp;·&nbsp; <strong>Topspin:</strong> E &nbsp;·&nbsp; <strong>Slice:</strong> Q</p>
           <p><strong>Serve:</strong> Space &nbsp;·&nbsp; <strong>Pause:</strong> Esc
              &nbsp;·&nbsp; <strong>Mute:</strong> M &nbsp;·&nbsp; <strong>Camera:</strong> V</p>
-        </div>
+        </details>
       </div>
 
       <div id="ladder" class="overlay hidden">
