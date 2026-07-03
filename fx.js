@@ -10,8 +10,14 @@ export class Fx {
     this.particles = [];
     this.trailPoints = [];
     this.rings = [];
+    this.texts = [];
     this.shakeTime = 0;
     this.shakeMag = 0;
+  }
+
+  // Floating caption ("SMASH!") that rises and fades above a court point.
+  text(x, y, str) {
+    this.texts.push({ x, y, z: 5, str, life: 0.7, maxLife: 0.7 });
   }
 
   spawn(p) {
@@ -102,6 +108,11 @@ export class Fx {
       r.r += dt * 2.2;
     }
     this.rings = this.rings.filter((r) => r.life > 0);
+    for (const t of this.texts) {
+      t.life -= dt;
+      t.z += 4 * dt;
+    }
+    this.texts = this.texts.filter((t) => t.life > 0);
   }
 
   // Trail + rings: under the entities.
@@ -141,6 +152,19 @@ export class Fx {
         ctx.arc(px.px, px.py - view.zOffset(p.y, p.z), p.size * s, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+    for (const t of this.texts) {
+      const p = view.toPx(t.x, t.y);
+      const s = view.scaleAt(t.y);
+      ctx.globalAlpha = Math.max(0, t.life / t.maxLife);
+      ctx.font = `800 ${Math.max(14, Math.round(s * 0.8))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      const py = p.py - view.zOffset(t.y, t.z);
+      ctx.strokeText(t.str, p.px, py);
+      ctx.fillStyle = '#ffd166';
+      ctx.fillText(t.str, p.px, py);
     }
     ctx.globalAlpha = 1;
   }

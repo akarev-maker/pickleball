@@ -506,6 +506,22 @@ function playerShot() {
     };
   }
 
+  // Overhead smash: any swing (drive or spin) contacting the ball above
+  // SMASH_HEIGHT is punched steeply down at full power.
+  if (ball.z >= SMASH_HEIGHT) {
+    const sp = smashParams(ball.z, power);
+    const dir = player.moveDir();
+    return {
+      tx: aim.active ? aim.x : clamp(CENTER_X + dir.dx * 7 + rand(-1.5, 1.5), 1, COURT_W - 1),
+      ty: aim.active ? aim.y : clamp(9 + dir.dy * 6, 2, NET_Y - 2),
+      apexZ: sp.apexZ,
+      power,
+      timeScale: sp.timeScale,
+      spin: 0,
+      smash: true,
+    };
+  }
+
   // Drives go where the crosshair points (keyboard steering as fallback).
   // More power flattens the arc AND compresses the flight time: faster and
   // harder to chase, but riskier — extra scatter, and a flat ball can find
@@ -586,7 +602,13 @@ function botHit(bot, teamSide, target) {
   if (variant === 'skinny') shot.tx = clamp(shot.tx, SKINNY_L + 0.7, SKINNY_R - 0.7);
   applyStress(shot, bot, bot.difficulty.aimError * 0.5);
   bot.swingT = 0.28;
-  sfx.paddle(0.25);
+  if (shot.smash) {
+    sfx.smash();
+    fx.shake(0.6);
+    fx.text(ball.x, ball.y, 'SMASH!');
+  } else {
+    sfx.paddle(0.25);
+  }
   ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
   netRebound = false;
   atpShot = false;
@@ -609,8 +631,15 @@ function handleHits() {
       if (result) return result;
       const shot = playerShot();
       applyStress(shot, player, 1.2 + 0.6 * shot.power);
-      if (shot.dink) sfx.dink(); else sfx.paddle(shot.power);
-      if ((shot.timeScale ?? 1) < 0.85) fx.shake(0.5);
+      if (shot.dink) sfx.dink();
+      else if (shot.smash) sfx.smash();
+      else sfx.paddle(shot.power);
+      if (shot.smash) {
+        fx.shake(0.8);
+        fx.text(ball.x, ball.y, 'SMASH!');
+      } else if ((shot.timeScale ?? 1) < 0.85) {
+        fx.shake(0.5);
+      }
       ball.launchTo(shot.tx, shot.ty, shot.apexZ, shot.timeScale ?? 1, shot.spin ?? 0);
       netRebound = false;
       atpShot = false;

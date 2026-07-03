@@ -98,6 +98,12 @@ export const sfx = {
     if (!ready()) return;
     noise(0.12, 700, 0.7, 0.08, 0, 0.02);
   },
+  // Overhead smash: the paddle pop scaled up — a hard crack, no beep.
+  smash() {
+    if (!ready()) return;
+    noise(0.09, 2600, 1.2, 0.55, 0, 0.002);
+    note('sine', 330, 70, 0.09, 0.3);
+  },
   // A soft touch shot: same pop, much gentler.
   dink() {
     if (!ready()) return;

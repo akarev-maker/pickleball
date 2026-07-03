@@ -7,6 +7,7 @@ import {
 } from '../shots.js';
 import { netCrossing, NET_Y, COURT_W } from '../court.js';
 import { MAX_HIT_HEIGHT } from '../player.js';
+import { Cpu } from '../cpu.js';
 
 let passed = 0;
 let failed = 0;
@@ -108,6 +109,26 @@ test('skinny court narrows the post span', () => {
   // x=2 is inside the full court but outside a 14 ft strip starting at 4.5.
   const hit = netCrossing({ x: 2, y: 23, z: 2 }, { x: 2, y: 21, z: 2 }, 4.5, 18.5);
   assertEqual(hit && hit.kind, 'around');
+});
+
+// --- CPU smash branch ---
+
+test('cpu smashes any ball it takes above SMASH_HEIGHT', () => {
+  const cpu = new Cpu('top');
+  cpu.setDifficulty('medium');
+  const highBall = { x: 10, y: 6, z: 6, vx: 0, vy: -10, vz: 0 };
+  const shot = cpu.chooseShot(highBall, { x: 5, y: 30 });
+  assert(shot.smash, 'flagged as a smash');
+  assert(shot.apexZ <= highBall.z + 0.5 + 1e-9, 'punched, not lifted');
+  assert(shot.timeScale < 0.7, 'compressed flight');
+});
+
+test('cpu below smash height plays a normal shot', () => {
+  const cpu = new Cpu('top');
+  cpu.setDifficulty('medium');
+  const lowBall = { x: 10, y: 6, z: 2, vx: 0, vy: -10, vz: 0 };
+  const shot = cpu.chooseShot(lowBall, { x: 5, y: 30 });
+  assert(!shot.smash, 'no smash flag on a low ball');
 });
 
 // --- charged serve, through the real game loop ---

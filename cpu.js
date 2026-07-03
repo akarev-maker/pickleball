@@ -5,6 +5,7 @@ import {
 } from './court.js';
 import { drawFigure, REACH, MAX_HIT_HEIGHT } from './player.js';
 import { QUICK_PROFILES } from './ladder.js';
+import { SMASH_HEIGHT } from './shots.js';
 
 export class Cpu {
   // side 'top' plays toward the player; side 'bottom' is a doubles partner.
@@ -102,6 +103,22 @@ export class Cpu {
   chooseShot(ball, playerPos) {
     const p = this.difficulty;
     const err = p.aimError;
+
+    // A ball taken overhead is smashed: barely lifted, punched steeply
+    // down and away from the player. This is what punishes short lobs.
+    if (ball.z >= SMASH_HEIGHT) {
+      const awayX = playerPos.x < CENTER_X
+        ? rand(CENTER_X + 2, COURT_W - 2)
+        : rand(2, CENTER_X - 2);
+      return {
+        tx: clampX(awayX + rand(-err, err)),
+        ty: this.m(rand(KITCHEN_BOTTOM + 1, COURT_L - 2)) + rand(-err, err),
+        apexZ: ball.z + 0.5,
+        timeScale: 0.6 - 0.2 * p.aggression,
+        spin: 0.3,
+        smash: true,
+      };
+    }
 
     if (Math.random() < p.lobbiness * 0.35) {
       return {
