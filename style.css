@@ -481,6 +481,8 @@ button.link.on {
 
 .swing-btn.big {
   background: rgba(184, 233, 134, 0.45);
+  grid-column: 1 / -1;
+  border-radius: 30px;
 }
 
 .swing-btn:active {

@@ -175,10 +175,10 @@ let charge = 0; // 0..1 shot power, held Space / mouse button charges it
 let netRebound = false; // ball fell back off the net; label the point 'Netted!'
 let swingWindow = 0; // buffered swing: connects if the ball arrives in time
 let swingCooldown = 0; // whiff recovery; also grace right after serving
-let swingMods = { dink: false, spin: 0 }; // captured when the swing starts
+let swingMods = { dink: false, spin: 0, lob: false }; // captured when the swing starts
 // Every stroke has its own swing button: hold it to charge, release to hit.
-// Space/mouse = drive, Shift = dink, E = topspin, Q = slice.
-const SWING_KEYS = ['Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyQ'];
+// Space/mouse = drive, Shift = dink, E = topspin, Q = slice, F = lob.
+const SWING_KEYS = ['Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyQ', 'KeyF'];
 
 // A release starts a swing: it stays live for a short window so slightly
 // early timing still connects. Dink/spin modifiers are locked in here —
@@ -188,10 +188,12 @@ const SWING_KEYS = ['Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyQ'];
 function queueSwing(source) {
   if (state !== 'rally' || swingCooldown > 0 || swingWindow > 0) return;
   const shiftHeld = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  const lob = source === 'KeyF' || keys.has('KeyF');
   swingMods = {
-    dink: source === 'ShiftLeft' || source === 'ShiftRight' || shiftHeld,
-    spin: source === 'KeyE' || keys.has('KeyE') ? 1
-      : (source === 'KeyQ' || keys.has('KeyQ') ? -1 : 0),
+    lob,
+    dink: !lob && (source === 'ShiftLeft' || source === 'ShiftRight' || shiftHeld),
+    spin: lob ? 0 : (source === 'KeyE' || keys.has('KeyE') ? 1
+      : (source === 'KeyQ' || keys.has('KeyQ') ? -1 : 0)),
   };
   swingWindow = 0.16;
   player.swingT = 0.28;
@@ -464,11 +466,29 @@ function endRally({ winner, reason }) {
 
 function playerShot() {
   // Modifiers were locked in when the swing started (queueSwing).
-  const { dink, spin } = swingMods;
+  const { dink, spin, lob } = swingMods;
+  const held = charge;
   // You can only unload on a ball you take high — power on a low ball is
   // throttled so a full meter doesn't just drill the net.
-  const power = charge * Math.max(0.3, Math.min(1, ball.z / 4));
+  const power = held * Math.max(0.3, Math.min(1, ball.z / 4));
   charge = 0;
+
+  if (lob) {
+    // Loft it over an opponent at the net: charge buys height and depth.
+    // An under-charged lob falls short and sits up for a smash; a deep
+    // one risks sailing long under stress scatter.
+    const dir = player.moveDir();
+    const tx = aim.active ? aim.x : clamp(CENTER_X + dir.dx * 7, 1, COURT_W - 1);
+    const tyAimed = aim.active ? clamp(aim.y, 1, NET_Y - 3) : 4;
+    const short = NET_Y - 6; // a dead lob drops at the opponent's kitchen
+    return {
+      tx: clamp(tx + rand(-1, 1), 1, COURT_W - 1),
+      ty: short + (tyAimed - short) * held,
+      apexZ: lobParams(held).apexZ,
+      power: 0,
+      spin: 0,
+    };
+  }
 
   if (dink) {
     // Drop it into the CPU's kitchen; the crosshair picks the spot along it.
@@ -787,9 +807,13 @@ function drawLetterbox(ctx) {
 function drawStrokeBadge(ctx) {
   // Shows the stroke you're currently charging.
   const labels = [];
-  if (keys.has('ShiftLeft') || keys.has('ShiftRight')) labels.push('DINK');
-  if (keys.has('KeyE')) labels.push('TOPSPIN');
-  else if (keys.has('KeyQ')) labels.push('SLICE');
+  if (keys.has('KeyF')) {
+    labels.push('LOB');
+  } else {
+    if (keys.has('ShiftLeft') || keys.has('ShiftRight')) labels.push('DINK');
+    if (keys.has('KeyE')) labels.push('TOPSPIN');
+    else if (keys.has('KeyQ')) labels.push('SLICE');
+  }
   if (labels.length === 0) return;
   const p = view.toPx(player.x, player.y);
   const s = view.scaleAt(player.y);
