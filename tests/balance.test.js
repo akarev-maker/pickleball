@@ -1,80 +1,19 @@
-// Balance check: a bot player that runs toward the ball's predicted landing
-// spot plays a full game against the CPU. Reports the final score.
-// Run: node tests/balance.test.js <easy|medium|hard>
-
-import { installDom } from './dom-stub.js';
-import { COURT_W, COURT_L, NET_Y, KITCHEN_BOTTOM, CENTER_X } from '../rules.js';
-
-const difficulty = process.argv[2] || 'medium';
-
+// Balance check: the shared bot player (perfect tracking, release-to-swing)
+// plays a full game against the CPU. Reports the final score.
+// Run: node tests/balance.test.js <easy|medium|hard> [charge]
+//
 // Pass 'charge' as the second arg to make the bot hold Space during rallies
 // (full-power shots); default is neutral shots.
+
+import { runBotGame } from './bot.js';
+
+const difficulty = process.argv[2] || 'medium';
 const alwaysCharge = process.argv[3] === 'charge';
 
-const dom = installDom();
-await import('../game.js');
-const { ball, player, getState } = window.__pickleball;
+const res = await runBotGame({ difficulty, alwaysCharge });
+console.log(`${difficulty}: ${res.title || 'no result'}  bot ${res.player} — ${res.cpu} cpu  (${res.seconds.toFixed(0)}s simulated)`);
 
-dom.startGame(difficulty);
-
-const DIR_KEYS = { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' };
-const held = new Set();
-
-function setKeys(wanted) {
-  for (const [dir, code] of Object.entries(DIR_KEYS)) {
-    if (wanted.has(dir) && !held.has(code)) { dom.keyDown(code); held.add(code); }
-    if (!wanted.has(dir) && held.has(code)) { dom.keyUp(code); held.delete(code); }
-  }
+if (res.player === 0 && res.cpu === 0) {
+  console.error('FAIL: no points were played');
+  process.exit(1);
 }
-
-function botThink() {
-  // Chase the landing spot when the ball is coming and in; let out balls fly;
-  // stay behind the kitchen line for balls dropping into it.
-  let tx = CENTER_X;
-  let ty = COURT_L - 6;
-  if (ball.inFlight && ball.vy > 0) {
-    const land = ball.predictLanding();
-    const landsIn = land.x >= 0 && land.x <= COURT_W && land.y <= COURT_L;
-    if (landsIn) {
-      tx = land.x;
-      ty = land.y > NET_Y && land.y < KITCHEN_BOTTOM
-        ? KITCHEN_BOTTOM + 0.5
-        : Math.max(land.y, NET_Y + 1.5);
-    }
-  }
-  const wanted = new Set();
-  if (tx < player.x - 0.5) wanted.add('left');
-  if (tx > player.x + 0.5) wanted.add('right');
-  if (ty < player.y - 0.5) wanted.add('up');
-  if (ty > player.y + 0.5) wanted.add('down');
-  setKeys(wanted);
-}
-
-let time = 0;
-const FRAME = 1000 / 60;
-let frames = 0;
-const MAX_FRAMES = 60 * 600; // 10 simulated minutes
-
-let serveFrames = 0;
-while (frames < MAX_FRAMES) {
-  botThink();
-  // Press-and-release Space to serve; hold through rallies only when
-  // testing always-charged play.
-  const st = getState();
-  if (st === 'serving') {
-    if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); serveFrames = 0; }
-    else if (++serveFrames > 20) { dom.keyUp('Space'); held.delete('Space'); }
-  } else if (alwaysCharge) {
-    if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); }
-  } else if (held.has('Space')) {
-    dom.keyUp('Space');
-    held.delete('Space');
-  }
-  time += FRAME;
-  dom.step(time);
-  frames++;
-  if (dom.elements['gameover-title'].textContent) break;
-}
-
-const result = dom.elements['gameover-title'].textContent || 'no result';
-console.log(`${difficulty}: ${result}  (${(frames / 60).toFixed(0)}s simulated)`);

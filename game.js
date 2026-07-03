@@ -281,6 +281,12 @@ function togglePause() {
     ui.hidePause();
     state = pausedFrom;
   } else if (PAUSABLE.includes(state)) {
+    // Drop any serve charge: keys release while paused, and resuming
+    // must not fire a phantom serve from the stored charge.
+    if (state === 'serving') {
+      serveCharging = false;
+      charge = 0;
+    }
     pausedFrom = state;
     state = 'paused';
     ui.showPause({
@@ -301,6 +307,7 @@ function togglePause() {
 
 function showMainMenu() {
   state = 'menu';
+  charge = 0; // a mid-charge quit must not leave the meter on screen
   ui.showModeMenu(startGame, openLadder, {
     onDaily: startDaily,
     onCosmetics: applyCosmetics,
@@ -398,6 +405,9 @@ function startServe() {
   }
   const sy = server === PLAYER ? COURT_L + 1.5 : -1.5;
   ball.placeAt(serveX, sy, 2.5);
+  // Leftover charge from the last rally (or a quit) must not ride into
+  // this serve — or linger on screen as a stale meter.
+  charge = 0;
   serveCharging = false;
   state = 'serving';
 }

@@ -51,7 +51,8 @@ export class Fx {
   spawnConfetti() {
     for (let i = 0; i < 120; i++) {
       this.spawn({
-        x: Math.random() * 23, y: Math.random() * 20 + 12, z: 14 + Math.random() * 10,
+        // 26 = court width (rules.js COURT_W; fx stays import-free)
+        x: Math.random() * 26, y: Math.random() * 20 + 12, z: 14 + Math.random() * 10,
         vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4,
         vz: -(2 + Math.random() * 3),
         life: 3.5, maxLife: 3.5, size: 0.18,
