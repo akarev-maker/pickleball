@@ -40,8 +40,9 @@ or `npm start`, which runs the same command.
 ## Controls
 
 **Touch devices:** controls appear on first touch — left joystick moves (and
-steers your shots), right-hand buttons are the four strokes (DRIVE / DINK /
-TOP / SLICE), each with the same hold-to-charge, release-to-swing timing.
+steers your shots), right-hand buttons are the five strokes (DRIVE / DINK /
+TOP / SLICE / LOB), each with the same hold-to-charge, release-to-swing
+timing; DRIVE also serves.
 To play on your phone, serve over your network (`python3 -m http.server
 8000`) and open `http://<your-computer-ip>:8000`.
 
@@ -52,7 +53,8 @@ To play on your phone, serve over your network (`python3 -m http.server
 | Space / mouse button | Drive: hold to charge power, release to swing as the ball arrives. Mistimed swings whiff. |
 | Shift | Dink swing (hold + release the same way) — a soft drop into the opponent's kitchen |
 | E / Q | Topspin / slice swing. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. A badge under your player shows the stroke you're charging. |
-| Space | Serve |
+| F | Lob swing — a high arc over an opponent crowding the net. Charge sets height and depth; a weak lob sits up and gets smashed. |
+| Space | Serve — hold to charge: more power serves deeper and faster but scatters more, so a fully cooked serve can fault |
 | V | Toggle camera: top-down or behind-the-player pseudo-3D |
 | Esc / P | Pause (resume, restart match, or quit) |
 | M | Mute |
@@ -63,6 +65,10 @@ scatter. Swinging before a required bounce (the serve and its return) is a
 fault, and volleying from the kitchen still costs you the point. The net is
 physical: tape clips can tumble over and stay live, netted balls drop back
 and cost you the point. Balls touching a line are in.
+
+Balls taken overhead (above 5.5 ft) become smashes — steeply punched and
+nearly unreturnable up close. The net posts are real: a wide ball can
+legally pass *around* the post at any height, and the banner will say so.
 
 ## Rules enforced
 
