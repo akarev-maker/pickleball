@@ -13,6 +13,23 @@ export { COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X };
 // Out-of-bounds apron (feet) drawn around the court; players may roam here.
 export const MARGIN = 6;
 
+export const NET_HEIGHT = 3; // ft
+
+// Classifies one frame of ball travel against the net plane. Returns null
+// when the net is not in play (no crossing, or cleared the tape), 'around'
+// when the ball crossed below tape height but outside the posts (an
+// around-the-post shot — legal), or 'contact' with the interpolated height.
+// Posts sit 0.8 ft outside the sidelines; 0.9 adds the ball's radius.
+export function netCrossing(prev, cur, left = 0, right = COURT_W) {
+  if ((prev.y - NET_Y) * (cur.y - NET_Y) >= 0) return null;
+  const f = (NET_Y - prev.y) / (cur.y - prev.y);
+  const zAtNet = prev.z + (cur.z - prev.z) * f;
+  if (zAtNet >= NET_HEIGHT) return null;
+  const xAtNet = prev.x + (cur.x - prev.x) * f;
+  if (xAtNet < left - 0.9 || xAtNet > right + 0.9) return { kind: 'around', zAtNet };
+  return { kind: 'contact', zAtNet };
+}
+
 // Sizes canvas to the viewport and returns a view for the requested mode.
 export function setupCanvas(canvas, mode = 'top') {
   const dpr = window.devicePixelRatio || 1;
