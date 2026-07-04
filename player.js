@@ -70,13 +70,13 @@ export class Player {
 // gait: { walk, idle, moving } — stride phase, breathing phase, in motion.
 const SWING_TIME = 0.28;
 
-// The stroke: a short windup pulling the paddle back, then the whip
-// through the ball. Ranges -0.35 (backswing) → 1 (full extension) → 0.
+// The stroke: a windup pulling the paddle back, then the whip through
+// the ball. Ranges -0.6 (backswing) → 1 (full extension) → 0.
 function swingCurve(swingT) {
   if (swingT <= 0) return 0;
   const phase = 1 - swingT / SWING_TIME;
   return phase < 0.3
-    ? -(phase / 0.3) * 0.35
+    ? -(phase / 0.3) * 0.6
     : Math.sin(((phase - 0.3) / 0.7) * Math.PI);
 }
 
@@ -91,8 +91,8 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     // Readability floor: far players never shrink into dots.
     const s = Math.max(view.scaleAt(y), view.scale * 0.66);
     const bob = moving
-      ? Math.abs(Math.sin(gait.walk)) * s * 0.09
-      : idleSway * s * 0.03;
+      ? Math.abs(Math.sin(gait.walk)) * s * 0.15
+      : idleSway * s * 0.055;
     // Shadow on the court
     ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.beginPath();
@@ -107,15 +107,15 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
       ctx.beginPath();
       ctx.moveTo(p.px + lx * s, p.py - s * 0.9 - bob);
       ctx.lineTo(
-        p.px + (lx * 1.2 + stride * 0.24) * s,
-        p.py - Math.max(0, stride) * s * 0.18,
+        p.px + (lx * 1.2 + stride * 0.42) * s,
+        p.py - Math.max(0, stride) * s * 0.3,
       );
       ctx.stroke();
     }
     // Free arm counter-swings on the run, hangs loose otherwise.
     const side = facing === -1 ? 1 : -1;
     const shy = p.py - s * 1.8 - bob;
-    const offAngle = 0.95 + (moving ? Math.sin(gait.walk) * 0.45 : idleSway * 0.07);
+    const offAngle = 0.95 + (moving ? Math.sin(gait.walk) * 0.75 : idleSway * 0.12);
     ctx.strokeStyle = '#e8b98a';
     ctx.lineWidth = Math.max(2, s * 0.2);
     ctx.beginPath();
@@ -141,9 +141,10 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     // Arm + paddle on the racket side; the stroke winds up, then sweeps
     // across the body. At rest it sways gently; on the run it pumps.
     const armSway = swingT > 0 ? 0
-      : (moving ? Math.sin(gait.walk + Math.PI) * 0.16 : idleSway * 0.06);
+      : (moving ? Math.sin(gait.walk + Math.PI) * 0.3 : idleSway * 0.1);
     const armAngle = 0.35 - 2.1 * sweep + armSway;
-    const armLen = s * (0.95 + 0.25 * Math.max(0, sweep));
+    // The arm bends into the windup (sweep < 0) and extends through the hit.
+    const armLen = s * (0.95 + 0.3 * sweep);
     const shx = p.px + side * s * 0.45;
     const hx = shx + side * Math.cos(armAngle) * armLen;
     const hy = shy + Math.sin(armAngle) * armLen * 0.55;
@@ -184,9 +185,26 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   ctx.ellipse(p.px, p.py + scale * 0.35, scale * 0.75, scale * 0.3, 0, 0, Math.PI * 2);
   ctx.fill();
 
+  // Feet peek out on the baseline side and scissor while moving.
+  if (gait) {
+    const step = moving ? Math.sin(gait.walk) : 0;
+    ctx.fillStyle = '#4a3826';
+    for (let i = 0; i < 2; i++) {
+      const fx = p.px + (i === 0 ? -0.4 : 0.4) * scale;
+      const fy = p.py - facing * scale * (0.62 + (i === 0 ? step : -step) * 0.3);
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, scale * 0.2, scale * 0.26, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // The body pulses with the stride (and faintly with breath at rest).
+  const bodyR = scale * 0.8 * (moving
+    ? 1 + Math.sin(gait.walk * 2) * 0.06
+    : 1 + idleSway * 0.02);
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(p.px, p.py, scale * 0.8, 0, Math.PI * 2);
+  ctx.arc(p.px, p.py, bodyR, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.lineWidth = 2;
@@ -196,7 +214,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   // winds up then sweeps across the body, same timing as the 3D arm.
   // Between swings it sways with the stride (or drifts gently at rest).
   const paddleSway = swingT > 0 ? 0
-    : (moving ? Math.sin(gait.walk) * 0.12 : idleSway * 0.05);
+    : (moving ? Math.sin(gait.walk) * 0.28 : idleSway * 0.09);
   const ang = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing + paddleSway;
   const hx = p.px + Math.cos(ang) * scale * 1.05;
   const hy = p.py + Math.sin(ang) * scale * 1.05;
