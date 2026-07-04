@@ -77,14 +77,20 @@ canvas {
   color: var(--serve);
 }
 
+/* Top-down: over your own kitchen — the one band you never aim at. */
+#hud.top-view #banner {
+  top: 60%;
+}
+
 .serve-tag {
   font-style: normal;
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--serve);
-  background: rgba(255, 215, 94, 0.14);
-  padding: 2px 7px 1px;
+  background: rgba(255, 215, 94, 0.2);
+  padding: 2px 8px 1px;
   border-radius: 999px;
   margin-left: 9px;
   vertical-align: 16%;
@@ -92,7 +98,8 @@ canvas {
 
 #banner {
   position: absolute;
-  top: 34%;
+  /* 3D: in the sky above the far court — never over the net. */
+  top: clamp(76px, 11%, 140px);
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-display);

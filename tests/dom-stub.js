@@ -36,7 +36,7 @@ function makeElement(id) {
 export function installDom() {
   const elements = {};
   const ids = [
-    'game', 'score', 'banner', 'menu', 'difficulty-row',
+    'game', 'score', 'banner', 'menu', 'hud', 'difficulty-row',
     'mode-grid', 'difficulty-title', 'difficulty-back',
     'mode-quick', 'mode-tournament', 'mode-doubles', 'mode-skinny', 'best3',
     'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',

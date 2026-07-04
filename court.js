@@ -497,6 +497,10 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
     ctx.fillStyle = backdrop.ground;
     ctx.fillRect(0, view.horizon + 2, view.width, view.height);
     drawGroundDeco(ctx, view);
+    // A soft footprint anchors the court to the ground plane on every
+    // backdrop, so it never reads as pasted on.
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+    quad(ctx, view, left - 1.5, -1.5, right + 1.5, COURT_L + 1.5);
   } else {
     ctx.fillStyle = backdrop.top;
     ctx.fillRect(0, 0, view.width, view.height);

@@ -68,7 +68,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
 
   if (view.mode === '3d') {
     // Readability floor: far players never shrink into dots.
-    const s = Math.max(view.scaleAt(y), view.scale * 0.55);
+    const s = Math.max(view.scaleAt(y), view.scale * 0.66);
     // Shadow on the court
     ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.beginPath();

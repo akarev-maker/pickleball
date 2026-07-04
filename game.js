@@ -29,15 +29,22 @@ let viewMode = 'top';
 try {
   if (localStorage.getItem('pickleball.view') === '3d') viewMode = '3d';
 } catch { /* storage unavailable */ }
+// The HUD carries the view mode so CSS can place overlays per view
+// (the banner has a different safe spot in each camera).
+function applyView() {
+  view = setupCanvas(canvas, viewMode);
+  document.getElementById('hud').classList.toggle('top-view', viewMode === 'top');
+}
 let view = setupCanvas(canvas, viewMode);
-window.addEventListener('resize', () => { view = setupCanvas(canvas, viewMode); });
+applyView();
+window.addEventListener('resize', applyView);
 
 function toggleView() {
   viewMode = viewMode === 'top' ? '3d' : 'top';
   try {
     localStorage.setItem('pickleball.view', viewMode);
   } catch { /* storage unavailable */ }
-  view = setupCanvas(canvas, viewMode);
+  applyView();
 }
 
 const keys = new Set();
@@ -405,7 +412,9 @@ function startServe() {
     partner.x = player.x < CENTER_X ? CENTER_X + 6 : CENTER_X - 6;
   }
   const sy = server === PLAYER ? COURT_L + 1.5 : -1.5;
-  ball.placeAt(serveX, sy, 2.5);
+  // Hold the ball beside the server's paddle hand — spawning it dead on
+  // their position hid it behind the (same-colored) player figure.
+  ball.placeAt(serveX + (server === PLAYER ? 1.1 : -1.1), sy, 2.5);
   // Leftover charge from the last rally (or a quit) must not ride into
   // this serve — or linger on screen as a stale meter.
   charge = 0;
