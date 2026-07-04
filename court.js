@@ -517,7 +517,9 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
   // Court surface + a clearly distinct kitchen (non-volley zone)
   ctx.fillStyle = '#3f8ac2';
   quad(ctx, view, left, 0, right, COURT_L);
-  ctx.fillStyle = '#79c2e9';
+  // Light enough to read as a distinct zone, dark enough that the white
+  // kitchen lines keep contrast against it (they vanish on paler fills).
+  ctx.fillStyle = '#66aeda';
   quad(ctx, view, left, KITCHEN_TOP, right, KITCHEN_BOTTOM);
 
   // Lines
