@@ -32,12 +32,41 @@ export const BACKDROPS = [
     id: 'sand', name: 'Beachside', swatch: '#d9c07e',
     top: '#d3b874', skyTop: '#7fc4de', skyBottom: '#eadfa9', ground: '#d9c07e', deco: 'sea',
   },
+  {
+    id: 'synthwave', name: 'Neon Grid', swatch: '#ff4f9e',
+    top: '#1a0b33', skyTop: '#0b0221', skyBottom: '#2d0a4e', ground: '#14062e', deco: 'synthwave',
+  },
+  {
+    id: 'aurora', name: 'Northern Lights', swatch: '#3dffb0',
+    top: '#8799a7', skyTop: '#020714', skyBottom: '#0a1a2e', ground: '#8599a9', deco: 'aurora',
+  },
+  {
+    id: 'stadium', name: 'Championship Night', swatch: '#f2c14e',
+    top: '#262c34', skyTop: '#05070a', skyBottom: '#10151c', ground: '#2a3038', deco: 'stadium',
+  },
+  {
+    id: 'sakura', name: 'Hanami', swatch: '#ffb3c9',
+    top: '#63845a', skyTop: '#ffd9e8', skyBottom: '#ffb3c9', ground: '#6f8f5e', deco: 'sakura',
+  },
 ];
 
 let backdrop = BACKDROPS[0];
 
 export function setBackdrop(id) {
   backdrop = BACKDROPS.find((t) => t.id === id) || BACKDROPS[0];
+}
+
+// Animation clock: real time in the browser, frozen at 0 under
+// prefers-reduced-motion and in headless tests (no matchMedia), so every
+// scene also composes as a still image.
+const ANIMATE = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  ? !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  : false;
+const clock = () => (ANIMATE ? performance.now() / 1000 : 0);
+
+// Deterministic pseudo-random in [0, 1): same n, same value, every frame.
+function hash(n) {
+  return (((Math.sin(n * 127.1) * 43758.5453) % 1) + 1) % 1;
 }
 
 export const NET_HEIGHT = 3; // ft
@@ -142,43 +171,51 @@ function perspectiveView(ctx, scale, width, height) {
   };
 }
 
-// Sky decorations for the 3D view, one per theme. All positions derive
-// from the viewport and deterministic math — nothing flickers frame to frame.
+// A shared starfield: deterministic positions, subtle brightness spread.
+function starField(ctx, view, h) {
+  ctx.fillStyle = 'rgba(238, 244, 255, 0.9)';
+  for (let i = 0; i < 46; i++) {
+    const sx = (((i * 137.508) % 97) / 97) * view.width;
+    const sy = (((i * 61.803) % 89) / 89) * h * 0.85;
+    const r = 0.6 + ((i * 7) % 10) / 9;
+    ctx.globalAlpha = 0.35 + ((i * 13) % 10) / 15;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Sky decorations for the 3D view, one scene per theme. Positions are
+// deterministic; motion comes only from the clock, so nothing flickers.
 function drawDeco(ctx, view) {
   const h = view.horizon;
+  const w = view.width;
+  const t = clock();
+
   if (backdrop.deco === 'sun') {
     // A low sun sinking into the horizon, with a soft glow.
-    const sx = view.width * 0.72;
+    const sx = w * 0.72;
     const sy = h * 0.82;
     const glow = ctx.createRadialGradient(sx, sy, h * 0.08, sx, sy, h * 0.9);
     glow.addColorStop(0, 'rgba(255, 214, 140, 0.55)');
     glow.addColorStop(1, 'rgba(255, 214, 140, 0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, view.width, h + 2);
+    ctx.fillRect(0, 0, w, h + 2);
     ctx.fillStyle = '#ffd68c';
     ctx.beginPath();
     ctx.arc(sx, sy, h * 0.16, 0, Math.PI * 2);
     ctx.fill();
   } else if (backdrop.deco === 'stars') {
-    ctx.fillStyle = 'rgba(238, 244, 255, 0.9)';
-    for (let i = 0; i < 46; i++) {
-      const sx = (((i * 137.508) % 97) / 97) * view.width;
-      const sy = (((i * 61.803) % 89) / 89) * h * 0.85;
-      const r = 0.6 + ((i * 7) % 10) / 9;
-      ctx.globalAlpha = 0.35 + ((i * 13) % 10) / 15;
-      ctx.beginPath();
-      ctx.arc(sx, sy, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
+    starField(ctx, view, h);
     // A gibbous moon.
     ctx.fillStyle = '#e8ecd8';
     ctx.beginPath();
-    ctx.arc(view.width * 0.78, h * 0.32, h * 0.09, 0, Math.PI * 2);
+    ctx.arc(w * 0.78, h * 0.32, h * 0.09, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = backdrop.skyTop;
     ctx.beginPath();
-    ctx.arc(view.width * 0.78 - h * 0.035, h * 0.3, h * 0.075, 0, Math.PI * 2);
+    ctx.arc(w * 0.78 - h * 0.035, h * 0.3, h * 0.075, 0, Math.PI * 2);
     ctx.fill();
   } else if (backdrop.deco === 'sea') {
     // A band of ocean just above the horizon.
@@ -187,9 +224,237 @@ function drawDeco(ctx, view) {
     sea.addColorStop(0, '#4f9ec4');
     sea.addColorStop(1, '#78b8d6');
     ctx.fillStyle = sea;
-    ctx.fillRect(0, top, view.width, h + 2 - top);
+    ctx.fillRect(0, top, w, h + 2 - top);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.fillRect(0, top, view.width, 1.5);
+    ctx.fillRect(0, top, w, 1.5);
+  } else if (backdrop.deco === 'synthwave') {
+    // The retro sun: a hot gradient disc with widening gaps toward its
+    // base, half-sunk behind the skyline.
+    const sx = w / 2;
+    const sy = h * 0.7;
+    const r = h * 0.5;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.clip();
+    const g = ctx.createLinearGradient(0, sy - r, 0, sy + r);
+    g.addColorStop(0, '#ffd85f');
+    g.addColorStop(0.55, '#ff8d5f');
+    g.addColorStop(1, '#ff4f9e');
+    ctx.fillStyle = g;
+    ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+    ctx.fillStyle = backdrop.skyBottom;
+    for (let i = 0; i < 6; i++) {
+      ctx.fillRect(sx - r, sy + r * (0.02 + i * 0.16), r * 2, 1.5 + i * 1.7);
+    }
+    ctx.restore();
+    // City skyline with a scatter of lit windows.
+    ctx.fillStyle = '#160726';
+    let x = 0;
+    let i = 0;
+    while (x < w) {
+      const bw = 16 + hash(i) * 30;
+      const bh = h * (0.05 + hash(i + 40) * 0.2);
+      ctx.fillRect(x, h - bh + 2, bw + 1, bh);
+      for (let k = 0; k < 3; k++) {
+        if (hash(i * 9 + k) < 0.45) continue;
+        ctx.fillStyle = k % 2 ? 'rgba(94, 233, 255, 0.6)' : 'rgba(255, 95, 158, 0.65)';
+        ctx.fillRect(
+          x + 2 + hash(i * 13 + k) * (bw - 5),
+          h - bh + 4 + hash(i * 17 + k) * (bh - 8),
+          1.6,
+          2.4,
+        );
+        ctx.fillStyle = '#160726';
+      }
+      x += bw;
+      i++;
+    }
+  } else if (backdrop.deco === 'aurora') {
+    starField(ctx, view, h);
+    // Aurora: three ribbons, each stroked in three widths for a soft
+    // glow, drifting on layered sine waves. Additive blending keeps
+    // overlaps luminous.
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const colors = ['61, 255, 176', '77, 208, 255', '176, 124, 255'];
+    for (let rb = 0; rb < 3; rb++) {
+      const baseY = h * (0.22 + rb * 0.15);
+      for (const [lw, alpha] of [[26, 0.05], [13, 0.09], [5, 0.16]]) {
+        ctx.strokeStyle = `rgba(${colors[rb]}, ${alpha})`;
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        for (let x = -20; x <= w + 20; x += 24) {
+          const y = baseY
+            + Math.sin(x * 0.006 + t * (0.35 + rb * 0.12) + rb * 2.1) * h * 0.1
+            + Math.sin(x * 0.017 + t * 0.7 + rb) * h * 0.03;
+          if (x === -20) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  } else if (backdrop.deco === 'stadium') {
+    // Two banked tiers of crowd under a black arena ceiling.
+    for (const [top, bot] of [[0.3, 0.62], [0.68, 0.97]]) {
+      ctx.fillStyle = '#10151d';
+      ctx.fillRect(0, h * top, w, h * (bot - top));
+      for (let row = 0; row < 3; row++) {
+        const y = h * (top + (bot - top) * ((row + 0.6) / 3));
+        for (let x = 6; x < w; x += 13) {
+          const i = x * 7 + row * 131;
+          ctx.fillStyle = `rgba(${140 + ((hash(i) * 60) | 0)}, ${130 + ((hash(i + 3) * 50) | 0)}, ${125 + ((hash(i + 9) * 60) | 0)}, 0.5)`;
+          ctx.beginPath();
+          ctx.arc(x + hash(i + 1) * 6, y + hash(i + 2) * 4, 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    // Floodlight banks.
+    for (const fx of [0.14, 0.86]) {
+      const lx = w * fx;
+      const ly = h * 0.13;
+      ctx.fillStyle = '#0a0e14';
+      ctx.fillRect(lx - 26, ly - 9, 52, 15);
+      ctx.fillStyle = 'rgba(255, 244, 200, 0.95)';
+      for (let b = 0; b < 4; b++) {
+        ctx.beginPath();
+        ctx.arc(lx - 18 + b * 12, ly, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // Camera flashes popping in the stands.
+    const tick = Math.floor(t * 6);
+    for (let i = 0; i < 4; i++) {
+      const s = hash(tick * 17 + i * 53);
+      if (s < 0.5) continue;
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.3 + s * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(
+        hash(tick * 29 + i * 97) * w,
+        h * (0.32 + hash(tick * 41 + i * 13) * 0.6),
+        1.6 + s * 1.6,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+    }
+  } else if (backdrop.deco === 'sakura') {
+    // A pale spring sun and Mount Fuji on the horizon.
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.beginPath();
+    ctx.arc(w * 0.22, h * 0.28, h * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    const mx = w * 0.78;
+    const base = h + 2;
+    const peak = h * 0.12;
+    const half = w * 0.24;
+    ctx.fillStyle = '#8494b8';
+    ctx.beginPath();
+    ctx.moveTo(mx - half, base);
+    ctx.lineTo(mx, peak);
+    ctx.lineTo(mx + half, base);
+    ctx.closePath();
+    ctx.fill();
+    // Snowcap with a notched melt line.
+    const capBase = peak + (base - peak) * 0.3;
+    const capHalf = half * 0.32;
+    ctx.fillStyle = '#f4f7fb';
+    ctx.beginPath();
+    ctx.moveTo(mx, peak);
+    ctx.lineTo(mx - capHalf, capBase);
+    ctx.lineTo(mx - capHalf * 0.5, capBase - h * 0.03);
+    ctx.lineTo(mx - capHalf * 0.15, capBase);
+    ctx.lineTo(mx + capHalf * 0.25, capBase - h * 0.035);
+    ctx.lineTo(mx + capHalf * 0.6, capBase - h * 0.01);
+    ctx.lineTo(mx + capHalf, capBase);
+    ctx.closePath();
+    ctx.fill();
+    // Petals drifting across the sky on the breeze.
+    for (let i = 0; i < 26; i++) {
+      const px = (((hash(i * 3) * w + t * (14 + hash(i) * 20)) % (w + 30)) + (w + 30)) % (w + 30) - 15;
+      const py = ((hash(i * 7) * h + t * (8 + hash(i + 5) * 10)) % (h * 0.96) + h * 0.96) % (h * 0.96);
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(t * (0.8 + hash(i + 11)) + i);
+      ctx.fillStyle = `rgba(255, 182, 205, ${0.65 + hash(i + 13) * 0.35})`;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 4.4, 2.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+// Ground-level decoration, drawn after the ground fill and before the court
+// surface (which paints over the middle) — so it lives on the apron.
+function drawGroundDeco(ctx, view) {
+  const h = view.horizon;
+  const w = view.width;
+  const t = clock();
+
+  if (backdrop.deco === 'synthwave') {
+    // The scrolling perspective grid: scan lines accelerate toward the
+    // viewer, rays fan out from the vanishing point.
+    ctx.strokeStyle = 'rgba(255, 79, 158, 0.3)';
+    ctx.lineWidth = 1.5;
+    const gh = view.height - h;
+    const phase = (t * 0.6) % 1;
+    for (let k = 0; k < 14; k++) {
+      const f = (k + phase) / 14;
+      const y = h + gh * f * f;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(94, 233, 255, 0.15)';
+    ctx.lineWidth = 1;
+    for (let j = -9; j <= 9; j++) {
+      ctx.beginPath();
+      ctx.moveTo(w / 2 + j * w * 0.02, h);
+      ctx.lineTo(w / 2 + j * w * 0.13, view.height);
+      ctx.stroke();
+    }
+  } else if (backdrop.deco === 'aurora') {
+    // The aurora reflects faintly off the snow below the horizon.
+    const glow = ctx.createLinearGradient(0, h, 0, h + (view.height - h) * 0.6);
+    glow.addColorStop(0, 'rgba(61, 255, 176, 0.16)');
+    glow.addColorStop(1, 'rgba(61, 255, 176, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, h, w, (view.height - h) * 0.6);
+  } else if (backdrop.deco === 'stadium') {
+    // Floodlight beams wash down across the apron toward the court.
+    ctx.fillStyle = 'rgba(255, 244, 200, 0.05)';
+    for (const fx of [0.14, 0.86]) {
+      ctx.beginPath();
+      ctx.moveTo(w * fx, h * 0.13);
+      ctx.lineTo(w * (fx < 0.5 ? 0.62 : 0.38), view.height);
+      ctx.lineTo(w * (fx < 0.5 ? 0.16 : 0.84), view.height);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+// Top-down flourish: only themes whose signature survives shrinking to a
+// flat backdrop get one — everything else stays a clean palette.
+function drawTopDeco(ctx, view) {
+  if (backdrop.deco !== 'synthwave') return;
+  ctx.strokeStyle = 'rgba(255, 95, 158, 0.08)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < view.width; x += 44) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, view.height);
+    ctx.stroke();
+  }
+  for (let y = 0; y < view.height; y += 44) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(view.width, y);
+    ctx.stroke();
   }
 }
 
@@ -230,9 +495,11 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
     drawDeco(ctx, view);
     ctx.fillStyle = backdrop.ground;
     ctx.fillRect(0, view.horizon + 2, view.width, view.height);
+    drawGroundDeco(ctx, view);
   } else {
     ctx.fillStyle = backdrop.top;
     ctx.fillRect(0, 0, view.width, view.height);
+    drawTopDeco(ctx, view);
     // A darker apron frames the playing surface (the court fills paint
     // over the middle), plus a soft vignette so the edges recede.
     ctx.fillStyle = 'rgba(0, 0, 0, 0.10)';
