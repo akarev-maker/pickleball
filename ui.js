@@ -3,7 +3,7 @@
 
 import { PLAYER, CPU } from './rules.js';
 import {
-  PADDLES, BALLS, isUnlocked, equip, equipped, loadStats, dailyChallenge,
+  PADDLES, BALLS, BACKDROPS, isUnlocked, equip, equipped, loadStats, dailyChallenge,
 } from './progress.js';
 
 const scoreEl = document.getElementById('score');
@@ -140,7 +140,9 @@ export function showLocker(onCosmetics) {
       return `<button class="${cls}" data-slot="${slot}" data-id="${item.id}" ${open ? '' : 'disabled'}>`
         + `<span class="dot" style="background:${item.color}"></span>${label}</button>`;
     }).join('');
-    list.innerHTML = section('Paddles', 'paddle', PADDLES) + section('Balls', 'ball', BALLS);
+    list.innerHTML = section('Paddles', 'paddle', PADDLES)
+      + section('Balls', 'ball', BALLS)
+      + section('Courts', 'backdrop', BACKDROPS);
   }
 
   list.onclick = (e) => {

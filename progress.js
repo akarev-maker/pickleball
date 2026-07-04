@@ -2,6 +2,7 @@
 // Unlocks are derived from stats at read time — nothing to migrate.
 
 import { ROSTER } from './ladder.js';
+import { BACKDROPS as THEMES } from './court.js';
 
 const STATS_KEY = 'pickleball.stats';
 const EQUIP_KEY = 'pickleball.equip';
@@ -79,6 +80,11 @@ export const BALLS = [
   { id: 'ice', name: 'Ice', color: '#8de3ff', how: 'Win a daily challenge', unlocked: (s) => s.dailyWins >= 1 },
 ];
 
+// Court backdrops are a free setting, not an unlock — every theme is open.
+export const BACKDROPS = THEMES.map((t) => (
+  { id: t.id, name: t.name, color: t.swatch, how: 'Always yours', unlocked: () => true }
+));
+
 export function isUnlocked(item, rung = currentRung()) {
   return item.unlocked(loadStats(), rung);
 }
@@ -91,11 +97,12 @@ function currentRung() {
   }
 }
 
+const SLOTS = { paddle: PADDLES, ball: BALLS, backdrop: BACKDROPS };
+
 export function equipped() {
-  if (!memEquip) memEquip = read(EQUIP_KEY, { paddle: 'classic', ball: 'classic' });
+  if (!memEquip) memEquip = read(EQUIP_KEY, { paddle: 'classic', ball: 'classic', backdrop: 'classic' });
   // Never keep something equipped that isn't unlocked (e.g. cleared stats).
-  const list = { paddle: PADDLES, ball: BALLS };
-  for (const [slot, items] of Object.entries(list)) {
+  for (const [slot, items] of Object.entries(SLOTS)) {
     const item = items.find((i) => i.id === memEquip[slot]);
     if (!item || !isUnlocked(item)) memEquip[slot] = 'classic';
   }
@@ -103,8 +110,7 @@ export function equipped() {
 }
 
 export function equip(slot, id) {
-  const items = slot === 'paddle' ? PADDLES : BALLS;
-  const item = items.find((i) => i.id === id);
+  const item = (SLOTS[slot] || []).find((i) => i.id === id);
   if (!item || !isUnlocked(item)) return;
   equipped()[slot] = id;
   write(EQUIP_KEY, memEquip);

@@ -5,7 +5,7 @@ import {
   PLAYER, CPU, other, Score, Rally, isValidServeLanding, inKitchen, LINE_TOL,
 } from './rules.js';
 import {
-  setupCanvas, drawCourt, drawNet, netCrossing,
+  setupCanvas, drawCourt, drawNet, netCrossing, setBackdrop,
   COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT,
 } from './court.js';
 import { Ball } from './ball.js';
@@ -18,7 +18,7 @@ import { initAudio, sfx, toggleMute, isMuted } from './audio.js';
 import { Fx } from './fx.js';
 import { ReplayRecorder } from './replay.js';
 import {
-  recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors,
+  recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors, equipped,
 } from './progress.js';
 
 const BANNER_SECS = 2;
@@ -218,6 +218,7 @@ function applyCosmetics() {
   const c = equippedColors();
   player.color = c.paddle;
   ball.skinColor = c.ball;
+  setBackdrop(equipped().backdrop);
 }
 
 function clearModifiers() {

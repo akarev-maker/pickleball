@@ -24,7 +24,8 @@ is fully synthesized — mute with **M** or the speaker button.
 
 **Stats** (wins, shutouts, championships, longest rally, dailies) persist in
 your browser, and milestones unlock paddle colors and ball skins in the
-**Locker** on the main menu.
+**Locker** on the main menu. The Locker also picks the court backdrop —
+Club Green, Golden Hour, Night Match, or Beachside — free to switch anytime.
 
 ## Run it
 

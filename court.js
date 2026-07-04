@@ -13,6 +13,33 @@ export { COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X };
 // Out-of-bounds apron (feet) drawn around the court; players may roam here.
 export const MARGIN = 6;
 
+// Selectable background themes. Visual tokens live here with the drawing
+// code; the Locker lists them via progress.js. `swatch` is the picker dot.
+export const BACKDROPS = [
+  {
+    id: 'classic', name: 'Club Green', swatch: '#2e6b4f',
+    top: '#2e6b4f', skyTop: '#0e1713', skyBottom: '#27443a', ground: '#2e6b4f', deco: null,
+  },
+  {
+    id: 'sunset', name: 'Golden Hour', swatch: '#ff9a5e',
+    top: '#4a6247', skyTop: '#2b1a3a', skyBottom: '#ff9a5e', ground: '#3f5a44', deco: 'sun',
+  },
+  {
+    id: 'night', name: 'Night Match', swatch: '#101b33',
+    top: '#22303c', skyTop: '#05070f', skyBottom: '#101b33', ground: '#24313f', deco: 'stars',
+  },
+  {
+    id: 'sand', name: 'Beachside', swatch: '#d9c07e',
+    top: '#d3b874', skyTop: '#7fc4de', skyBottom: '#eadfa9', ground: '#d9c07e', deco: 'sea',
+  },
+];
+
+let backdrop = BACKDROPS[0];
+
+export function setBackdrop(id) {
+  backdrop = BACKDROPS.find((t) => t.id === id) || BACKDROPS[0];
+}
+
 export const NET_HEIGHT = 3; // ft
 
 // Classifies one frame of ball travel against the net plane. Returns null
@@ -115,6 +142,57 @@ function perspectiveView(ctx, scale, width, height) {
   };
 }
 
+// Sky decorations for the 3D view, one per theme. All positions derive
+// from the viewport and deterministic math — nothing flickers frame to frame.
+function drawDeco(ctx, view) {
+  const h = view.horizon;
+  if (backdrop.deco === 'sun') {
+    // A low sun sinking into the horizon, with a soft glow.
+    const sx = view.width * 0.72;
+    const sy = h * 0.82;
+    const glow = ctx.createRadialGradient(sx, sy, h * 0.08, sx, sy, h * 0.9);
+    glow.addColorStop(0, 'rgba(255, 214, 140, 0.55)');
+    glow.addColorStop(1, 'rgba(255, 214, 140, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, view.width, h + 2);
+    ctx.fillStyle = '#ffd68c';
+    ctx.beginPath();
+    ctx.arc(sx, sy, h * 0.16, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (backdrop.deco === 'stars') {
+    ctx.fillStyle = 'rgba(238, 244, 255, 0.9)';
+    for (let i = 0; i < 46; i++) {
+      const sx = (((i * 137.508) % 97) / 97) * view.width;
+      const sy = (((i * 61.803) % 89) / 89) * h * 0.85;
+      const r = 0.6 + ((i * 7) % 10) / 9;
+      ctx.globalAlpha = 0.35 + ((i * 13) % 10) / 15;
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // A gibbous moon.
+    ctx.fillStyle = '#e8ecd8';
+    ctx.beginPath();
+    ctx.arc(view.width * 0.78, h * 0.32, h * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = backdrop.skyTop;
+    ctx.beginPath();
+    ctx.arc(view.width * 0.78 - h * 0.035, h * 0.3, h * 0.075, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (backdrop.deco === 'sea') {
+    // A band of ocean just above the horizon.
+    const top = h * 0.8;
+    const sea = ctx.createLinearGradient(0, top, 0, h + 2);
+    sea.addColorStop(0, '#4f9ec4');
+    sea.addColorStop(1, '#78b8d6');
+    ctx.fillStyle = sea;
+    ctx.fillRect(0, top, view.width, h + 2 - top);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillRect(0, top, view.width, 1.5);
+  }
+}
+
 function line(ctx, view, x1, y1, x2, y2) {
   const a = view.toPx(x1, y1);
   const b = view.toPx(x2, y2);
@@ -143,44 +221,17 @@ function quad(ctx, view, x1, y1, x2, y2) {
 export function drawCourt(ctx, view, left = 0, right = COURT_W) {
   // Apron / backdrop
   if (view.mode === '3d') {
-    // Evening sky gradient down to the horizon
+    // Themed sky gradient down to the horizon, plus the theme's decoration.
     const sky = ctx.createLinearGradient(0, 0, 0, view.horizon);
-    sky.addColorStop(0, '#0e1713');
-    sky.addColorStop(1, '#27443a');
+    sky.addColorStop(0, backdrop.skyTop);
+    sky.addColorStop(1, backdrop.skyBottom);
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, view.width, view.horizon + 2);
-    ctx.fillStyle = '#2e6b4f';
+    drawDeco(ctx, view);
+    ctx.fillStyle = backdrop.ground;
     ctx.fillRect(0, view.horizon + 2, view.width, view.height);
-    // Backstop fence behind the far court, projected at its own depth so
-    // it sits in the scene (with visible ends and grass beyond) instead of
-    // spanning the whole screen against the court's perspective.
-    const FENCE_L = -24;
-    const FENCE_R = COURT_W + 24;
-    const fenceBottom = view.toPx(0, -MARGIN).py;
-    const fenceH = Math.max(fenceBottom - view.horizon, 12);
-    const fl = view.toPx(FENCE_L, -MARGIN).px;
-    const fr = view.toPx(FENCE_R, -MARGIN).px;
-    ctx.fillStyle = 'rgba(16, 30, 24, 0.55)';
-    ctx.fillRect(fl, view.horizon, fr - fl, fenceH);
-    ctx.strokeStyle = 'rgba(180, 200, 190, 0.12)';
-    ctx.lineWidth = 2;
-    for (let fx = FENCE_L; fx <= FENCE_R; fx += 3) {
-      const px = view.toPx(fx, -MARGIN).px;
-      ctx.beginPath();
-      ctx.moveTo(px, view.horizon);
-      ctx.lineTo(px, view.horizon + fenceH);
-      ctx.stroke();
-    }
-    // Horizontal rails tie the mesh together.
-    ctx.lineWidth = 1.5;
-    for (const t of [0.35, 0.7]) {
-      ctx.beginPath();
-      ctx.moveTo(fl, view.horizon + fenceH * t);
-      ctx.lineTo(fr, view.horizon + fenceH * t);
-      ctx.stroke();
-    }
   } else {
-    ctx.fillStyle = '#2e6b4f';
+    ctx.fillStyle = backdrop.top;
     ctx.fillRect(0, 0, view.width, view.height);
     // A darker apron frames the playing surface (the court fills paint
     // over the middle), plus a soft vignette so the edges recede.
