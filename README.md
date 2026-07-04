@@ -52,7 +52,7 @@ To play on your phone, serve over your network (`python3 -m http.server
 | Input | Action |
 |-------|--------|
 | Arrow keys / WASD | Move |
-| Mouse | Aim — the crosshair is where your shots (and serves) go |
+| Mouse | Aim — the crosshair is where your shots (and serves) go. It roams past the lines: clean, planted strikes fly true, so keeping the ball in (or threading it around the post) is on you. |
 | Space / mouse button | Drive: hold to charge power, release to swing as the ball arrives. Mistimed swings whiff. |
 | Shift | Dink swing (hold + release the same way) — a soft drop into the opponent's kitchen |
 | E / Q | Topspin / slice swing. Topspin dips — same target, faster ball, kicks forward off the bounce. Slice floats in and skids low. A badge under your player shows the stroke you're charging. |

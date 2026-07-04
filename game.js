@@ -6,7 +6,7 @@ import {
 } from './rules.js';
 import {
   setupCanvas, drawCourt, drawNet, netCrossing, setBackdrop,
-  COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT,
+  COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT, MARGIN,
 } from './court.js';
 import { Ball } from './ball.js';
 import { SMASH_HEIGHT, serveParams, lobParams, smashParams } from './shots.js';
@@ -71,8 +71,11 @@ let touchMode = false;
 canvas.addEventListener('mousemove', (e) => {
   if (touchMode) return; // touch devices emit fake mousemoves; steer instead
   const c = view.toCourt(e.offsetX, e.offsetY);
-  aim.x = clamp(c.x, 0.5, COURT_W - 0.5);
-  aim.y = clamp(c.y, 0.5, NET_Y - 1);
+  // Free aim: anywhere on the far side, including out of bounds — clean
+  // strikes fly true now, so keeping the ball in the court is on you.
+  // (Aiming wide on purpose is how around-the-post shots happen.)
+  aim.x = clamp(c.x, -MARGIN + 0.5, COURT_W + MARGIN - 0.5);
+  aim.y = clamp(c.y, -MARGIN + 0.5, NET_Y - 1);
   aim.active = true;
 });
 canvas.addEventListener('mousedown', () => { initAudio(); mouseHeld = true; });
@@ -445,9 +448,9 @@ function serve(power = 0.25) {
     let tx;
     let ty;
     if (aim.active) {
-      // Loose clamps: with enough scatter a hot serve can fly long or
-      // drop short into the kitchen — both real service faults.
-      tx = clamp(aim.x + rand(-e, e), minTx, maxTx);
+      // Loose clamps: an aimed serve can fly long, wide, or drop short
+      // into the kitchen — all real service faults. Aim well.
+      tx = clamp(aim.x + rand(-e, e), courtLeft() - 5, courtRight() + 5);
       ty = clamp(aim.y + rand(-e, e), -2, KITCHEN_TOP + 2);
     } else {
       let steer = 0;
@@ -503,10 +506,10 @@ function playerShot() {
     // one risks sailing long under stress scatter.
     const dir = player.moveDir();
     const tx = aim.active ? aim.x : clamp(CENTER_X + dir.dx * 7, 1, COURT_W - 1);
-    const tyAimed = aim.active ? clamp(aim.y, 1, NET_Y - 3) : 4;
+    const tyAimed = aim.active ? clamp(aim.y, -4, NET_Y - 3) : 4;
     const short = NET_Y - 6; // a dead lob drops at the opponent's kitchen
     return {
-      tx: clamp(tx + rand(-1, 1), 1, COURT_W - 1),
+      tx: tx + rand(-0.7, 0.7),
       ty: short + (tyAimed - short) * held,
       apexZ: lobParams(held).apexZ,
       power: 0,
@@ -519,7 +522,7 @@ function playerShot() {
     const dir = player.moveDir();
     const tx = aim.active ? aim.x : clamp(ball.x + dir.dx * 5, 1, COURT_W - 1);
     return {
-      tx: clamp(tx + rand(-1, 1), 1, COURT_W - 1),
+      tx: clamp(tx + rand(-0.5, 0.5), 1, COURT_W - 1),
       ty: aim.active
         ? clamp(aim.y, KITCHEN_TOP + 1, NET_Y - 1)
         : rand(KITCHEN_TOP + 1.5, NET_Y - 1),
@@ -655,7 +658,7 @@ function handleHits() {
       const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
       if (result) return result;
       const shot = playerShot();
-      applyStress(shot, player, 1.2 + 0.6 * shot.power);
+      applyStress(shot, player, 0.7 + 0.5 * shot.power);
       if (shot.dink) sfx.dink();
       else if (shot.smash) sfx.smash();
       else sfx.paddle(shot.power);
