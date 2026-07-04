@@ -911,6 +911,9 @@ function frame(now) {
       } else {
         const holding = keys.has('Space') || mouseHeld;
         if (holding) {
+          // The instruction banner has done its job — clear the view of
+          // the net and opponent while the player lines up the serve.
+          if (!serveCharging) ui.hideBanner();
           serveCharging = true;
           charge = Math.min(1, charge + dt / 0.8);
         } else if (serveCharging) {

@@ -29,10 +29,11 @@ let bannerTimer = null;
 export function updateScore(score, servingSide, opponentName = 'CPU') {
   const you = `YOU ${score.get(PLAYER)}`;
   const cpu = `${opponentName} ${score.get(CPU)}`;
-  const dot = '<span class="serve-dot"></span>';
+  // The serving side is named outright — a bare dot read as a separator.
+  const tag = '<em class="serve-tag">serve</em>';
   scoreEl.innerHTML = servingSide === PLAYER
-    ? `<span class="serving">${dot}${you}</span> — ${cpu}`
-    : `${you} — <span class="serving">${dot}${cpu}</span>`;
+    ? `<span class="serving">${you}${tag}</span> — ${cpu}`
+    : `${you} — <span class="serving">${cpu}${tag}</span>`;
 }
 
 export function showBanner(text, ms = 2000) {

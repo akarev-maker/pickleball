@@ -114,10 +114,12 @@ export class Ball {
       ctx.stroke();
     }
 
-    // Shadow at the true court position
+    // Shadow at the true court position. The 3D readability floor is
+    // generous: tracking the ball is the whole game, so it never shrinks
+    // into a distant dot.
     const sp = view.toPx(this.x, this.y);
     const s = view.mode === '3d'
-      ? Math.max(view.scaleAt(this.y), view.scale * 0.55)
+      ? Math.max(view.scaleAt(this.y), view.scale * 0.85)
       : view.scaleAt(this.y);
     const r = s * 0.48;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';

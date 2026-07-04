@@ -151,17 +151,32 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
     ctx.fillRect(0, 0, view.width, view.horizon + 2);
     ctx.fillStyle = '#2e6b4f';
     ctx.fillRect(0, view.horizon + 2, view.width, view.height);
-    // Backstop fence behind the far court
+    // Backstop fence behind the far court, projected at its own depth so
+    // it sits in the scene (with visible ends and grass beyond) instead of
+    // spanning the whole screen against the court's perspective.
+    const FENCE_L = -24;
+    const FENCE_R = COURT_W + 24;
     const fenceBottom = view.toPx(0, -MARGIN).py;
     const fenceH = Math.max(fenceBottom - view.horizon, 12);
+    const fl = view.toPx(FENCE_L, -MARGIN).px;
+    const fr = view.toPx(FENCE_R, -MARGIN).px;
     ctx.fillStyle = 'rgba(16, 30, 24, 0.55)';
-    ctx.fillRect(0, view.horizon, view.width, fenceH);
-    ctx.strokeStyle = 'rgba(180, 200, 190, 0.14)';
+    ctx.fillRect(fl, view.horizon, fr - fl, fenceH);
+    ctx.strokeStyle = 'rgba(180, 200, 190, 0.12)';
     ctx.lineWidth = 2;
-    for (let px = 20; px < view.width; px += 46) {
+    for (let fx = FENCE_L; fx <= FENCE_R; fx += 3) {
+      const px = view.toPx(fx, -MARGIN).px;
       ctx.beginPath();
       ctx.moveTo(px, view.horizon);
       ctx.lineTo(px, view.horizon + fenceH);
+      ctx.stroke();
+    }
+    // Horizontal rails tie the mesh together.
+    ctx.lineWidth = 1.5;
+    for (const t of [0.35, 0.7]) {
+      ctx.beginPath();
+      ctx.moveTo(fl, view.horizon + fenceH * t);
+      ctx.lineTo(fr, view.horizon + fenceH * t);
       ctx.stroke();
     }
   } else {
@@ -184,7 +199,7 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
   // Court surface + a clearly distinct kitchen (non-volley zone)
   ctx.fillStyle = '#3f8ac2';
   quad(ctx, view, left, 0, right, COURT_L);
-  ctx.fillStyle = '#6db3dd';
+  ctx.fillStyle = '#79c2e9';
   quad(ctx, view, left, KITCHEN_TOP, right, KITCHEN_BOTTOM);
 
   // Lines
@@ -210,16 +225,33 @@ export function drawCourt(ctx, view, left = 0, right = COURT_W) {
 // (far-side players go behind the net, near-side in front).
 export function drawNet(ctx, view, left = 0, right = COURT_W) {
   if (view.mode === '3d') {
-    // A standing mesh band between the posts.
+    // A standing mesh band between the posts: translucent with visible
+    // strands so it reads as a net, not a wall.
     const l = view.toPx(left - 0.8, NET_Y);
     const r = view.toPx(right + 0.8, NET_Y);
     const top = view.zOffset(NET_Y, 3);
-    ctx.fillStyle = 'rgba(20, 30, 26, 0.82)';
+    ctx.fillStyle = 'rgba(20, 30, 26, 0.45)';
     ctx.fillRect(l.px, l.py - top, r.px - l.px, top);
+    // Mesh: vertical strands every ~1.2 ft plus a mid strand.
+    ctx.strokeStyle = 'rgba(232, 236, 234, 0.3)';
+    ctx.lineWidth = 1;
+    const strands = Math.round((right - left + 1.6) / 1.2);
+    const step = (r.px - l.px) / strands;
+    for (let x = l.px + step; x < r.px - 1; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, l.py - top);
+      ctx.lineTo(x, l.py);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(l.px, l.py - top * 0.5);
+    ctx.lineTo(r.px, r.py - top * 0.5);
+    ctx.stroke();
+    // White tape along the top, sturdy posts at the ends.
     ctx.fillStyle = '#e8ecea';
     ctx.fillRect(l.px, l.py - top, r.px - l.px, Math.max(2, top * 0.09));
-    ctx.strokeStyle = 'rgba(232, 236, 234, 0.85)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#cfd8d3';
+    ctx.lineWidth = 3;
     for (const p of [l, r]) {
       ctx.beginPath();
       ctx.moveTo(p.px, p.py);
