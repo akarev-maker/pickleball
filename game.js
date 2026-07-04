@@ -204,6 +204,8 @@ function queueSwing(source) {
   };
   swingWindow = 0.16;
   player.swingT = 0.28;
+  // Ball on the off-paddle side means this stroke renders as a backhand.
+  player.swingBack = ball.x < player.x;
 }
 
 function rand(min, max) {
@@ -427,7 +429,9 @@ function serve(power = 0.25) {
   rally = new Rally(server);
   rally.recordHit(server, { volley: false, inKitchen: false });
   recorder.clear();
-  (server === PLAYER ? player : cpu).swingT = 0.28;
+  const server0 = server === PLAYER ? player : cpu;
+  server0.swingT = 0.28;
+  server0.swingBack = false; // serves are always struck forehand
   sfx.paddle(0.4);
   ui.hideBanner();
 
@@ -622,6 +626,7 @@ function botHit(bot, teamSide, target) {
   if (variant === 'skinny') shot.tx = clamp(shot.tx, SKINNY_L + 0.7, SKINNY_R - 0.7);
   applyStress(shot, bot, bot.difficulty.aimError * 0.5);
   bot.swingT = 0.28;
+  bot.swingBack = bot.side === 'top' ? ball.x > bot.x : ball.x < bot.x;
   if (shot.smash) {
     sfx.smash();
     fx.shake(0.6);

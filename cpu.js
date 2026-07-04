@@ -20,6 +20,7 @@ export class Cpu {
     this.reactionLeft = 0;
     this.trackedBall = null;
     this.swingT = 0;
+    this.swingBack = false; // current stroke is a backhand
     this.walk = 0; // stride phase, advances with distance covered
     this.idle = Math.random() * 10; // breathing phase, desynced per figure
   }
@@ -162,7 +163,9 @@ export class Cpu {
 
   draw(ctx, view) {
     const color = this.side === 'bottom' ? '#8fd3a8' : '#ff8a5e';
-    const gait = { walk: this.walk, idle: this.idle, moving: this.speedNow > 1 };
+    const gait = {
+      walk: this.walk, idle: this.idle, moving: this.speedNow > 1, back: this.swingBack,
+    };
     drawFigure(ctx, view, this.x, this.y, color, this.side === 'top' ? 1 : -1, this.swingT, gait);
   }
 }

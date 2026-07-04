@@ -16,6 +16,7 @@ export class Player {
     this.speedNow = 0;
     this.color = '#ffd75e'; // equipped paddle color
     this.swingT = 0; // seconds left in the swing animation
+    this.swingBack = false; // current stroke is a backhand
     this.walk = 0; // stride phase, advances with distance covered
     this.idle = Math.random() * 10; // breathing phase, desynced per figure
   }
@@ -56,7 +57,9 @@ export class Player {
   }
 
   gait() {
-    return { walk: this.walk, idle: this.idle, moving: this.speedNow > 1 };
+    return {
+      walk: this.walk, idle: this.idle, moving: this.speedNow > 1, back: this.swingBack,
+    };
   }
 
   draw(ctx, view) {
@@ -80,10 +83,23 @@ function swingCurve(swingT) {
     : Math.sin(((phase - 0.3) / 0.7) * Math.PI);
 }
 
+// Darken a #rrggbb color by factor f (0..1).
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 255) * f);
+  const g = Math.round(((n >> 8) & 255) * f);
+  const b = Math.round((n & 255) * f);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+const SKIN = '#e8b98a';
+const SHOE = '#232a30';
+
 export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = null) {
   const p = view.toPx(x, y);
   const sweep = swingCurve(swingT);
   const moving = !!(gait && gait.moving);
+  const back = swingT > 0 && !!(gait && gait.back); // backhand stroke
   // Standing figures breathe; running ones bounce with their stride.
   const idleSway = gait ? Math.sin(gait.idle * 2.2) : 0;
 
@@ -98,87 +114,119 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     ctx.beginPath();
     ctx.ellipse(p.px, p.py, s * 0.75, s * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Legs: scissor while moving, planted when still.
-    ctx.strokeStyle = '#2b3a33';
+    // Legs in shorts-tone with shoes; they scissor while moving.
+    ctx.strokeStyle = shade(color, 0.35);
     ctx.lineWidth = Math.max(2, s * 0.24);
     for (let i = 0; i < 2; i++) {
       const lx = i === 0 ? -0.3 : 0.3;
       const stride = moving ? Math.sin(gait.walk + i * Math.PI) : 0;
+      const fx = p.px + (lx * 1.2 + stride * 0.42) * s;
+      const fy = p.py - Math.max(0, stride) * s * 0.3;
       ctx.beginPath();
       ctx.moveTo(p.px + lx * s, p.py - s * 0.9 - bob);
-      ctx.lineTo(
-        p.px + (lx * 1.2 + stride * 0.42) * s,
-        p.py - Math.max(0, stride) * s * 0.3,
-      );
+      ctx.lineTo(fx, fy);
       ctx.stroke();
+      ctx.fillStyle = SHOE;
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, s * 0.17, s * 0.1, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
     // Free arm counter-swings on the run, hangs loose otherwise.
     const side = facing === -1 ? 1 : -1;
     const shy = p.py - s * 1.8 - bob;
     const offAngle = 0.95 + (moving ? Math.sin(gait.walk) * 0.75 : idleSway * 0.12);
-    ctx.strokeStyle = '#e8b98a';
+    const ox = p.px - side * (s * 0.45 + Math.cos(offAngle) * s * 0.75);
+    const oy = shy + Math.sin(offAngle) * s * 0.55;
+    ctx.strokeStyle = SKIN;
     ctx.lineWidth = Math.max(2, s * 0.2);
     ctx.beginPath();
     ctx.moveTo(p.px - side * s * 0.45, shy);
-    ctx.lineTo(
-      p.px - side * (s * 0.45 + Math.cos(offAngle) * s * 0.75),
-      shy + Math.sin(offAngle) * s * 0.55,
-    );
+    ctx.lineTo(ox, oy);
     ctx.stroke();
-    // Body (jersey)
+    ctx.fillStyle = SKIN;
+    ctx.beginPath();
+    ctx.arc(ox, oy, s * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    // Shorts under the jersey.
+    ctx.fillStyle = shade(color, 0.55);
+    ctx.beginPath();
+    ctx.ellipse(p.px, p.py - s * 1.0 - bob, s * 0.5, s * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Jersey: a tapered torso with a collar seam.
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.ellipse(p.px, p.py - s * 1.5 - bob, s * 0.62, s * 0.85, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.px, p.py - s * 1.55 - bob, s * 0.6, s * 0.78, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.lineWidth = 2;
     ctx.stroke();
-    // Head
-    ctx.fillStyle = '#e8b98a';
+    ctx.strokeStyle = shade(color, 0.6);
+    ctx.lineWidth = Math.max(1.5, s * 0.07);
     ctx.beginPath();
-    ctx.arc(p.px, p.py - s * 2.7 - bob, s * 0.38, 0, Math.PI * 2);
+    ctx.arc(p.px, p.py - s * 2.05 - bob, s * 0.32, 0.3, Math.PI - 0.3);
+    ctx.stroke();
+    // Head with a team-color cap (brim shows on figures facing us).
+    const heady = p.py - s * 2.7 - bob;
+    ctx.fillStyle = SKIN;
+    ctx.beginPath();
+    ctx.arc(p.px, heady, s * 0.38, 0, Math.PI * 2);
     ctx.fill();
-    // Arm + paddle on the racket side; the stroke winds up, then sweeps
-    // across the body. At rest it sways gently; on the run it pumps.
+    ctx.fillStyle = shade(color, 0.72);
+    ctx.beginPath();
+    ctx.arc(p.px, heady - s * 0.05, s * 0.39, Math.PI, Math.PI * 2);
+    ctx.fill();
+    if (facing === 1) {
+      ctx.beginPath();
+      ctx.ellipse(p.px, heady - s * 0.02, s * 0.42, s * 0.09, 0, 0, Math.PI);
+      ctx.fill();
+    }
+    // Paddle arm: winds up, then sweeps — across the body on a backhand.
+    // At rest it sways gently; on the run it pumps.
     const armSway = swingT > 0 ? 0
       : (moving ? Math.sin(gait.walk + Math.PI) * 0.3 : idleSway * 0.1);
     const armAngle = 0.35 - 2.1 * sweep + armSway;
     // The arm bends into the windup (sweep < 0) and extends through the hit.
     const armLen = s * (0.95 + 0.3 * sweep);
+    const handDir = back ? -side : side;
     const shx = p.px + side * s * 0.45;
-    const hx = shx + side * Math.cos(armAngle) * armLen;
+    const hx = shx + handDir * Math.cos(armAngle) * armLen;
     const hy = shy + Math.sin(armAngle) * armLen * 0.55;
-    ctx.strokeStyle = '#e8b98a';
+    ctx.strokeStyle = SKIN;
     ctx.lineWidth = Math.max(2, s * 0.2);
     ctx.beginPath();
     ctx.moveTo(shx, shy);
     ctx.lineTo(hx, hy);
     ctx.stroke();
+    ctx.fillStyle = SKIN;
+    ctx.beginPath();
+    ctx.arc(hx, hy, s * 0.12, 0, Math.PI * 2);
+    ctx.fill();
     ctx.strokeStyle = '#7a4a2b';
     ctx.lineWidth = Math.max(2, s * 0.14);
     ctx.beginPath();
     ctx.moveTo(hx, hy);
-    ctx.lineTo(hx + side * s * 0.2, hy - s * 0.35);
+    ctx.lineTo(hx + handDir * s * 0.2, hy - s * 0.35);
     ctx.stroke();
-    ctx.fillStyle = '#31456b';
+    // Blade in the equipped paddle color.
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.ellipse(
-      hx + side * s * 0.28,
+      hx + handDir * s * 0.28,
       hy - s * 0.7,
       s * 0.32,
       s * 0.42,
-      side * (0.4 + 1.4 * sweep),
+      handDir * (0.4 + 1.4 * sweep),
       0,
       Math.PI * 2,
     );
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.lineWidth = 2;
     ctx.stroke();
     return;
   }
 
-  // Top-down: circle body with a paddle held out on the net side.
+  // Top-down: jersey disc, capped head, and the paddle on the net side.
   const scale = view.scaleAt(y);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
   ctx.beginPath();
@@ -188,7 +236,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   // Feet peek out on the baseline side and scissor while moving.
   if (gait) {
     const step = moving ? Math.sin(gait.walk) : 0;
-    ctx.fillStyle = '#4a3826';
+    ctx.fillStyle = SHOE;
     for (let i = 0; i < 2; i++) {
       const fx = p.px + (i === 0 ? -0.4 : 0.4) * scale;
       const fy = p.py - facing * scale * (0.62 + (i === 0 ? step : -step) * 0.3);
@@ -198,7 +246,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     }
   }
 
-  // The body pulses with the stride (and faintly with breath at rest).
+  // Shoulders pulse with the stride (and faintly with breath at rest).
   const bodyR = scale * 0.8 * (moving
     ? 1 + Math.sin(gait.walk * 2) * 0.06
     : 1 + idleSway * 0.02);
@@ -209,13 +257,22 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.lineWidth = 2;
   ctx.stroke();
+  // Head and cap seen from above.
+  ctx.fillStyle = SKIN;
+  ctx.beginPath();
+  ctx.arc(p.px, p.py, scale * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = shade(color, 0.72);
+  ctx.beginPath();
+  ctx.arc(p.px, p.py, scale * 0.34, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Paddle: a short handle from the body to an angled blade; the stroke
-  // winds up then sweeps across the body, same timing as the 3D arm.
+  // Paddle: winds up then sweeps across the body — mirrored on a backhand.
   // Between swings it sways with the stride (or drifts gently at rest).
   const paddleSway = swingT > 0 ? 0
     : (moving ? Math.sin(gait.walk) * 0.28 : idleSway * 0.09);
-  const ang = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing + paddleSway;
+  const ang = Math.atan2(facing * 0.55, back ? -0.65 : 0.65)
+    - sweep * 2.2 * facing * (back ? -1 : 1) + paddleSway;
   const hx = p.px + Math.cos(ang) * scale * 1.05;
   const hy = p.py + Math.sin(ang) * scale * 1.05;
   ctx.strokeStyle = '#7a4a2b';
@@ -224,7 +281,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   ctx.moveTo(p.px + Math.cos(ang) * scale * 0.6, p.py + Math.sin(ang) * scale * 0.6);
   ctx.lineTo(hx, hy);
   ctx.stroke();
-  ctx.fillStyle = '#31456b';
+  ctx.fillStyle = color;
   ctx.beginPath();
   ctx.ellipse(
     hx + Math.cos(ang) * scale * 0.28,
@@ -236,7 +293,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     Math.PI * 2,
   );
   ctx.fill();
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+  ctx.lineWidth = 2;
   ctx.stroke();
 }
