@@ -387,8 +387,8 @@ function startServe() {
     cpu.reset();
     if (variant !== 'doubles') cpu.x = variant === 'skinny' ? serveX : COURT_W - serveX;
     ui.showBanner(touchMode
-      ? 'Your serve — hold DRIVE to charge'
-      : 'Your serve — hold SPACE to charge, release to serve', 0);
+      ? 'Your serve — hold DRIVE'
+      : 'Your serve — hold SPACE, release to hit', 0);
   } else {
     serveX = variant === 'skinny' ? CENTER_X : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
     cpu.reset();

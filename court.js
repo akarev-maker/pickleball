@@ -229,8 +229,9 @@ function drawDeco(ctx, view) {
     ctx.fillRect(0, top, w, 1.5);
   } else if (backdrop.deco === 'synthwave') {
     // The retro sun: a hot gradient disc with widening gaps toward its
-    // base, half-sunk behind the skyline.
-    const sx = w / 2;
+    // base, half-sunk behind the skyline. Offset from center so it never
+    // sits directly behind the score bar.
+    const sx = w * 0.67;
     const sy = h * 0.7;
     const r = h * 0.5;
     ctx.save();
@@ -567,16 +568,21 @@ export function drawNet(ctx, view, left = 0, right = COURT_W) {
     ctx.moveTo(l.px, l.py - top * 0.5);
     ctx.lineTo(r.px, r.py - top * 0.5);
     ctx.stroke();
-    // White tape along the top, sturdy posts at the ends.
+    // White tape along the top, sturdy posts at the ends: planted a touch
+    // into the ground, capped with a knob.
     ctx.fillStyle = '#e8ecea';
     ctx.fillRect(l.px, l.py - top, r.px - l.px, Math.max(2, top * 0.09));
-    ctx.strokeStyle = '#cfd8d3';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#aab6b0';
+    ctx.lineWidth = 4.5;
     for (const p of [l, r]) {
       ctx.beginPath();
-      ctx.moveTo(p.px, p.py);
-      ctx.lineTo(p.px, p.py - top);
+      ctx.moveTo(p.px, p.py + 3);
+      ctx.lineTo(p.px, p.py - top - 2);
       ctx.stroke();
+      ctx.fillStyle = '#e8ecea';
+      ctx.beginPath();
+      ctx.arc(p.px, p.py - top - 2, 3, 0, Math.PI * 2);
+      ctx.fill();
     }
   } else {
     const net = view.toPx(left - 0.8, NET_Y);
@@ -587,5 +593,15 @@ export function drawNet(ctx, view, left = 0, right = COURT_W) {
     ctx.fillRect(net.px, net.py - view.scale * 0.3, netW, view.scale * 0.45);
     ctx.fillStyle = '#e8ecea';
     ctx.fillRect(net.px, net.py - view.scale * 0.3, netW, view.scale * 0.12);
+    // Posts anchor the net at each end.
+    for (const px of [net.px, net.px + netW]) {
+      ctx.fillStyle = '#aab6b0';
+      ctx.beginPath();
+      ctx.arc(px, net.py, view.scale * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
   }
 }
