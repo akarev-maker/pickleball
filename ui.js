@@ -36,7 +36,10 @@ export function updateScore(score, servingSide, opponentName = 'CPU') {
     : `${you} — <span class="serving">${cpu}${tag}</span>`;
 }
 
-export function showBanner(text, ms = 2000) {
+// kind 'soft' renders as a quiet uppercase prompt (serve instructions);
+// the default stays punchy for point results and announcements.
+export function showBanner(text, ms = 2000, kind = '') {
+  bannerEl.classList.toggle('soft', kind === 'soft');
   clearTimeout(bannerTimer);
   bannerEl.textContent = text;
   bannerEl.classList.remove('hidden');

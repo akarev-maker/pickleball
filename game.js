@@ -395,7 +395,7 @@ function startServe() {
     if (variant !== 'doubles') cpu.x = variant === 'skinny' ? serveX : COURT_W - serveX;
     ui.showBanner(touchMode
       ? 'Your serve — hold DRIVE'
-      : 'Your serve — hold SPACE, release to hit', 0);
+      : 'Your serve — hold SPACE, release to hit', 0, 'soft');
   } else {
     serveX = variant === 'skinny' ? CENTER_X : (evenScore ? CENTER_X - 5 : CENTER_X + 5);
     cpu.reset();
@@ -404,7 +404,7 @@ function startServe() {
     player.x = variant === 'skinny' ? serveX : COURT_W - serveX;
     player.y = COURT_L - 2;
     serveTimer = CPU_SERVE_DELAY;
-    ui.showBanner(`${opponentName()} serves…`, 0);
+    ui.showBanner(`${opponentName()} serves…`, 0, 'soft');
   }
   if (variant === 'doubles') {
     opp2.reset();

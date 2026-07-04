@@ -16,6 +16,8 @@ export class Player {
     this.speedNow = 0;
     this.color = '#ffd75e'; // equipped paddle color
     this.swingT = 0; // seconds left in the swing animation
+    this.walk = 0; // stride phase, advances with distance covered
+    this.idle = Math.random() * 10; // breathing phase, desynced per figure
   }
 
   update(dt, keys) {
@@ -34,6 +36,8 @@ export class Player {
     this.dy = dy;
     this.speedNow = len > 0 ? SPEED : 0;
     this.swingT = Math.max(0, this.swingT - dt);
+    this.idle += dt;
+    this.walk += this.speedNow * dt * 1.5;
     this.x += dx * SPEED * dt;
     this.y += dy * SPEED * dt;
     // Confined to own half plus a slim apron (stays in frame in both
@@ -51,42 +55,80 @@ export class Player {
       && ball.z < MAX_HIT_HEIGHT;
   }
 
+  gait() {
+    return { walk: this.walk, idle: this.idle, moving: this.speedNow > 1 };
+  }
+
   draw(ctx, view) {
-    drawFigure(ctx, view, this.x, this.y, this.color, -1, this.swingT);
+    drawFigure(ctx, view, this.x, this.y, this.color, -1, this.swingT, this.gait());
   }
 }
 
 // Shared by player and CPU.
 // facing: -1 = seen from behind (bottom side), +1 = facing the viewer (top).
 // swingT: seconds remaining in the swing animation (0 = at rest).
+// gait: { walk, idle, moving } — stride phase, breathing phase, in motion.
 const SWING_TIME = 0.28;
 
-export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
+// The stroke: a short windup pulling the paddle back, then the whip
+// through the ball. Ranges -0.35 (backswing) → 1 (full extension) → 0.
+function swingCurve(swingT) {
+  if (swingT <= 0) return 0;
+  const phase = 1 - swingT / SWING_TIME;
+  return phase < 0.3
+    ? -(phase / 0.3) * 0.35
+    : Math.sin(((phase - 0.3) / 0.7) * Math.PI);
+}
+
+export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = null) {
   const p = view.toPx(x, y);
-  // 0 at rest, sweeps 0→1→0 through the stroke.
-  const sweep = swingT > 0 ? Math.sin((1 - swingT / SWING_TIME) * Math.PI) : 0;
+  const sweep = swingCurve(swingT);
+  const moving = !!(gait && gait.moving);
+  // Standing figures breathe; running ones bounce with their stride.
+  const idleSway = gait ? Math.sin(gait.idle * 2.2) : 0;
 
   if (view.mode === '3d') {
     // Readability floor: far players never shrink into dots.
     const s = Math.max(view.scaleAt(y), view.scale * 0.66);
+    const bob = moving
+      ? Math.abs(Math.sin(gait.walk)) * s * 0.09
+      : idleSway * s * 0.03;
     // Shadow on the court
     ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.beginPath();
     ctx.ellipse(p.px, p.py, s * 0.75, s * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Legs
+    // Legs: scissor while moving, planted when still.
     ctx.strokeStyle = '#2b3a33';
     ctx.lineWidth = Math.max(2, s * 0.24);
-    for (const lx of [-0.3, 0.3]) {
+    for (let i = 0; i < 2; i++) {
+      const lx = i === 0 ? -0.3 : 0.3;
+      const stride = moving ? Math.sin(gait.walk + i * Math.PI) : 0;
       ctx.beginPath();
-      ctx.moveTo(p.px + lx * s, p.py - s * 0.9);
-      ctx.lineTo(p.px + lx * s * 1.2, p.py);
+      ctx.moveTo(p.px + lx * s, p.py - s * 0.9 - bob);
+      ctx.lineTo(
+        p.px + (lx * 1.2 + stride * 0.24) * s,
+        p.py - Math.max(0, stride) * s * 0.18,
+      );
       ctx.stroke();
     }
+    // Free arm counter-swings on the run, hangs loose otherwise.
+    const side = facing === -1 ? 1 : -1;
+    const shy = p.py - s * 1.8 - bob;
+    const offAngle = 0.95 + (moving ? Math.sin(gait.walk) * 0.45 : idleSway * 0.07);
+    ctx.strokeStyle = '#e8b98a';
+    ctx.lineWidth = Math.max(2, s * 0.2);
+    ctx.beginPath();
+    ctx.moveTo(p.px - side * s * 0.45, shy);
+    ctx.lineTo(
+      p.px - side * (s * 0.45 + Math.cos(offAngle) * s * 0.75),
+      shy + Math.sin(offAngle) * s * 0.55,
+    );
+    ctx.stroke();
     // Body (jersey)
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.ellipse(p.px, p.py - s * 1.5, s * 0.62, s * 0.85, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.px, p.py - s * 1.5 - bob, s * 0.62, s * 0.85, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.lineWidth = 2;
@@ -94,14 +136,15 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
     // Head
     ctx.fillStyle = '#e8b98a';
     ctx.beginPath();
-    ctx.arc(p.px, p.py - s * 2.7, s * 0.38, 0, Math.PI * 2);
+    ctx.arc(p.px, p.py - s * 2.7 - bob, s * 0.38, 0, Math.PI * 2);
     ctx.fill();
-    // Arm + paddle on the racket side; the stroke sweeps across the body.
-    const side = facing === -1 ? 1 : -1;
-    const armAngle = 0.35 - 2.1 * sweep; // radians below horizontal at rest
-    const armLen = s * (0.95 + 0.25 * sweep);
+    // Arm + paddle on the racket side; the stroke winds up, then sweeps
+    // across the body. At rest it sways gently; on the run it pumps.
+    const armSway = swingT > 0 ? 0
+      : (moving ? Math.sin(gait.walk + Math.PI) * 0.16 : idleSway * 0.06);
+    const armAngle = 0.35 - 2.1 * sweep + armSway;
+    const armLen = s * (0.95 + 0.25 * Math.max(0, sweep));
     const shx = p.px + side * s * 0.45;
-    const shy = p.py - s * 1.8;
     const hx = shx + side * Math.cos(armAngle) * armLen;
     const hy = shy + Math.sin(armAngle) * armLen * 0.55;
     ctx.strokeStyle = '#e8b98a';
@@ -150,8 +193,11 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0) {
   ctx.stroke();
 
   // Paddle: a short handle from the body to an angled blade; the stroke
-  // sweeps it across the body, same timing as the 3D arm swing.
-  const ang = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing;
+  // winds up then sweeps across the body, same timing as the 3D arm.
+  // Between swings it sways with the stride (or drifts gently at rest).
+  const paddleSway = swingT > 0 ? 0
+    : (moving ? Math.sin(gait.walk) * 0.12 : idleSway * 0.05);
+  const ang = Math.atan2(facing * 0.55, 0.65) - sweep * 2.2 * facing + paddleSway;
   const hx = p.px + Math.cos(ang) * scale * 1.05;
   const hy = p.py + Math.sin(ang) * scale * 1.05;
   ctx.strokeStyle = '#7a4a2b';

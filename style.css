@@ -82,6 +82,19 @@ canvas {
   top: 60%;
 }
 
+/* Quiet prompt styling for serve instructions. */
+#banner.soft {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(242, 245, 243, 0.92);
+  background: rgba(10, 18, 14, 0.66);
+  border-color: rgba(184, 233, 134, 0.28);
+  padding: 9px 22px;
+  border-radius: 999px;
+}
+
 .serve-tag {
   font-style: normal;
   font-size: 12px;

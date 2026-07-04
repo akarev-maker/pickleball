@@ -20,6 +20,8 @@ export class Cpu {
     this.reactionLeft = 0;
     this.trackedBall = null;
     this.swingT = 0;
+    this.walk = 0; // stride phase, advances with distance covered
+    this.idle = Math.random() * 10; // breathing phase, desynced per figure
   }
 
   m(y) {
@@ -46,6 +48,7 @@ export class Cpu {
 
   update(dt, ball, playable = true) {
     this.swingT = Math.max(0, this.swingT - dt);
+    this.idle += dt;
     let targetX = this.homeX;
     let targetY = this.m(6); // home position between baseline and kitchen
 
@@ -81,6 +84,7 @@ export class Cpu {
       this.x += (dx / dist) * moved;
       this.y += (dy / dist) * moved;
       this.speedNow = moved / dt;
+      this.walk += moved * 1.5;
     } else {
       this.speedNow = 0;
     }
@@ -158,7 +162,8 @@ export class Cpu {
 
   draw(ctx, view) {
     const color = this.side === 'bottom' ? '#8fd3a8' : '#ff8a5e';
-    drawFigure(ctx, view, this.x, this.y, color, this.side === 'top' ? 1 : -1, this.swingT);
+    const gait = { walk: this.walk, idle: this.idle, moving: this.speedNow > 1 };
+    drawFigure(ctx, view, this.x, this.y, color, this.side === 'top' ? 1 : -1, this.swingT, gait);
   }
 }
 
