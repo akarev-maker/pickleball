@@ -401,8 +401,12 @@ function endCircuitRun() {
 
 function afterCircuitMatchWon() {
   advance(run);
-  if (run.won) endCircuitRun();
-  else startCircuitMatch();
+  if (run.won) {
+    state = 'game-over';
+    endCircuitRun();
+  } else {
+    startCircuitMatch();
+  }
 }
 
 function openShop() { openCircuit(); } // replaced in Task 8 by the Pro Shop
