@@ -10,6 +10,7 @@ import {
 } from './court.js';
 import { Ball } from './ball.js';
 import { SMASH_HEIGHT, serveParams, lobParams, smashParams } from './shots.js';
+import { PerkSet } from './perks.js';
 import { Player } from './player.js';
 import { Cpu } from './cpu.js';
 import * as ui from './ui.js';
@@ -182,6 +183,7 @@ let serveX = 0;
 let serveTimer = 0;
 let serveCharging = false;
 let demoAutoServe = false; // #demo dev mode: serve without input
+let activePerks = new PerkSet(); // empty outside the Circuit → all hooks neutral
 let bannerTimer = 0;
 let bannerSkip = false; // an input dismisses the point banner early
 let prevBallX = 0;
@@ -257,6 +259,7 @@ function setVariant(v) {
 
 function startGame(difficulty, opts = {}) {
   mode = 'quick';
+  activePerks = new PerkSet();
   opponent = null;
   lastDifficulty = difficulty;
   lastOpts = opts;
@@ -280,6 +283,7 @@ function startGame(difficulty, opts = {}) {
 
 function startDaily() {
   mode = 'daily';
+  activePerks = new PerkSet();
   setVariant('singles');
   bestOf3 = false;
   daily = dailyChallenge();
@@ -346,6 +350,7 @@ function openLadder() {
 
 function startTournamentMatch() {
   mode = 'tournament';
+  activePerks = new PerkSet();
   setVariant('singles');
   bestOf3 = false;
   clearModifiers();
@@ -505,8 +510,11 @@ function playerShot() {
   const { dink, spin, lob } = swingMods;
   const held = charge;
   // You can only unload on a ball you take high — power on a low ball is
-  // throttled so a full meter doesn't just drill the net.
-  const power = held * Math.max(0.3, Math.min(1, ball.z / 4));
+  // throttled so a full meter doesn't just drill the net. Power throttle
+  // plus perk boosts (Cannon/Overdrive); Overdrive lifts the low-ball
+  // throttle so you can flatten anything.
+  const power = Math.min(1,
+    held * Math.max(activePerks.throttleFloor(), Math.min(1, ball.z / 4)) * activePerks.powerMult());
   charge = 0;
 
   if (lob) {
@@ -523,6 +531,7 @@ function playerShot() {
       apexZ: lobParams(held).apexZ,
       power: 0,
       spin: 0,
+      lob: true,
     };
   }
 
@@ -544,14 +553,14 @@ function playerShot() {
 
   // Overhead smash: any swing (drive or spin) contacting the ball above
   // SMASH_HEIGHT is punched steeply down at full power.
-  if (ball.z >= SMASH_HEIGHT) {
+  if (ball.z >= activePerks.smashHeight()) {
     const sp = smashParams(ball.z, power);
     const dir = player.moveDir();
     return {
       tx: aim.active ? aim.x : clamp(CENTER_X + dir.dx * 7 + rand(-1.5, 1.5), 1, COURT_W - 1),
       ty: aim.active ? aim.y : clamp(9 + dir.dy * 6, 2, NET_Y - 2),
       apexZ: sp.apexZ,
-      power,
+      power: Math.min(1, power + activePerks.smashBonus()),
       timeScale: sp.timeScale,
       spin: 0,
       smash: true,
@@ -604,8 +613,11 @@ function applyStress(shot, hitter, base) {
   shot.apexZ = Math.max(3.2, shot.apexZ - stress * rand(0, 2));
 }
 
-function hitterInKitchen(who) {
-  return inKitchen(who.y) && who.x > 0 && who.x < COURT_W;
+function hitterInKitchen(who, tol = 0) {
+  if (who.x <= 0 || who.x >= COURT_W) return false;
+  if (!inKitchen(who.y)) return false;
+  // Kitchen Ninja lets the player stand a little inside without faulting.
+  return who.y > KITCHEN_TOP + tol && who.y < KITCHEN_BOTTOM - tol;
 }
 
 // The return of serve and the third shot must be played off the bounce;
@@ -661,13 +673,13 @@ function handleHits() {
   // fault — the rules call it.
   if (swingWindow > 0) {
     if (ball.inFlight && ball.vy > 0 && rally.lastHitter !== PLAYER
-        && player.canReach(ball)) {
+        && player.canReach(ball, activePerks.reachBonus())) {
       swingWindow = 0;
       const volley = !rally.bouncedSinceLastHit;
-      const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
+      const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player, activePerks.kitchenTolerance()) });
       if (result) return result;
       const shot = playerShot();
-      applyStress(shot, player, 0.7 + 0.5 * shot.power);
+      applyStress(shot, player, (0.7 + 0.5 * shot.power) * activePerks.scatterMult(shot));
       if (shot.dink) sfx.dink();
       else if (shot.smash) sfx.smash();
       else sfx.paddle(shot.power);
@@ -686,7 +698,7 @@ function handleHits() {
 
   // Your doubles partner still plays automatically.
   if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER && !mustLetBounce()
-      && variant === 'doubles' && !player.canReach(ball)) {
+      && variant === 'doubles' && !player.canReach(ball, activePerks.reachBonus())) {
     const r = botHit(partner, PLAYER, cpu);
     if (r !== undefined) return r;
   }
@@ -746,6 +758,15 @@ function handleNetCrossing() {
     return;
   }
 
+  const mine = prevBallY > NET_Y; // the player's shot is crossing to the CPU side
+  if (hit.kind === 'contact' && mine && activePerks.netMagnet()) {
+    sfx.net();
+    ball.vy *= 0.3;
+    ball.vx *= 0.5;
+    ball.vz = Math.min(ball.vz, 1);
+    return;
+  }
+
   sfx.net();
   sfx.ooh();
   fx.spawnNet(ball.x, NET_Y);
@@ -769,7 +790,7 @@ function handleNetCrossing() {
 }
 
 function updateRally(dt) {
-  player.update(dt, keys);
+  player.update(dt, keys, activePerks.moveSpeedMult());
   const playable = ballIsPlayable();
   cpu.update(dt, ball, playable);
   if (variant === 'doubles') {
@@ -806,6 +827,13 @@ function updateRally(dt) {
     px: player.x, py: player.y, cx: cpu.x, cy: cpu.y,
     p2x: partner.x, p2y: partner.y, o2x: opp2.x, o2y: opp2.y,
   });
+
+  if (result && result.reason === 'Service fault!'
+      && rally.server === PLAYER && activePerks.takeServeLet()) {
+    ui.showBanner('Let — serve again', 1000, 'soft');
+    startServe();
+    return;
+  }
 
   if (result) {
     if (netRebound) result.reason = 'Netted!';
@@ -952,7 +980,7 @@ function frame(now) {
       }
     } else {
       cpu.update(dt, ball);
-      player.update(dt, keys);
+      player.update(dt, keys, activePerks.moveSpeedMult());
       serveTimer -= dt;
       if (serveTimer <= 0) serve();
     }
@@ -963,11 +991,15 @@ function frame(now) {
     if (swingWindow > 0) {
       swingWindow -= dt;
       if (swingWindow <= 0) {
-        // Swung and missed.
         swingWindow = 0;
-        swingCooldown = 0.3;
-        charge = 0;
-        sfx.whiff();
+        if (activePerks.takeWhiffGrace()) {
+          // Wall: the mistimed swing is forgiven — keep the charge, no lockout.
+          sfx.paddle(0.15);
+        } else {
+          swingCooldown = 0.3;
+          charge = 0;
+          sfx.whiff();
+        }
       }
     }
     updateRally(dt);
@@ -986,7 +1018,7 @@ function frame(now) {
       endRally(pendingResult);
     }
   } else if (state === 'point-banner') {
-    player.update(dt, keys);
+    player.update(dt, keys, activePerks.moveSpeedMult());
     bannerTimer -= dt;
     // Dismiss on any input once the banner has been up long enough to read.
     const skipped = bannerSkip && bannerTimer < BANNER_SECS - 0.35;
@@ -1031,6 +1063,8 @@ window.__pickleball = {
   getState: () => state,
   getScore: () => score,
   getRally: () => rally,
+  setPerks: (ids) => { activePerks = new PerkSet(ids); },
+  getPerks: () => activePerks,
 };
 
 applyCosmetics();

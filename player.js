@@ -21,7 +21,7 @@ export class Player {
     this.idle = Math.random() * 10; // breathing phase, desynced per figure
   }
 
-  update(dt, keys) {
+  update(dt, keys, speedMult = 1) {
     let dx = 0;
     let dy = 0;
     if (keys.has('ArrowLeft') || keys.has('KeyA')) dx -= 1;
@@ -35,12 +35,13 @@ export class Player {
     }
     this.dx = dx;
     this.dy = dy;
-    this.speedNow = len > 0 ? SPEED : 0;
+    const speed = SPEED * speedMult;
+    this.speedNow = len > 0 ? speed : 0;
     this.swingT = Math.max(0, this.swingT - dt);
     this.idle += dt;
     this.walk += this.speedNow * dt * 1.5;
-    this.x += dx * SPEED * dt;
-    this.y += dy * SPEED * dt;
+    this.x += dx * speed * dt;
+    this.y += dy * speed * dt;
     // Confined to own half plus a slim apron (stays in frame in both
     // camera views); can't cross the net.
     this.x = Math.max(-3, Math.min(COURT_W + 3, this.x));
@@ -51,8 +52,8 @@ export class Player {
     return { dx: this.dx, dy: this.dy };
   }
 
-  canReach(ball) {
-    return Math.hypot(ball.x - this.x, ball.y - this.y) < PLAYER_REACH
+  canReach(ball, reachBonus = 0) {
+    return Math.hypot(ball.x - this.x, ball.y - this.y) < PLAYER_REACH + reachBonus
       && ball.z < MAX_HIT_HEIGHT;
   }
 
