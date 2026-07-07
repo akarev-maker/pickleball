@@ -6,6 +6,16 @@ import { BACKDROPS as THEMES } from './court.js';
 
 const STATS_KEY = 'pickleball.stats';
 const EQUIP_KEY = 'pickleball.equip';
+const CIRCUIT_KEY = 'pickleball.circuit';
+
+// The six perks a player starts with; the other four are bought in the shop.
+export const STARTER_PERKS = [
+  'cannon', 'feather', 'quickfeet', 'longreach', 'sureserve', 'netmagnet',
+];
+
+const DEFAULT_CIRCUIT = { trophies: 0, unlocked: STARTER_PERKS.slice(), bestDepth: 0 };
+
+let memCircuit = null;
 
 const DEFAULT_STATS = {
   games: 0, wins: 0, shutouts: 0, champs: 0,
@@ -148,4 +158,46 @@ export function dailyChallenge(dateStr = todayStr()) {
     modifier: MODIFIERS[Math.floor(h / 8) % MODIFIERS.length],
     doneToday: loadStats().lastDailyWin === dateStr,
   };
+}
+
+// --- The Circuit meta (Trophies, unlocked perks, best run depth) ---
+
+export function loadCircuit() {
+  if (!memCircuit) {
+    memCircuit = read(CIRCUIT_KEY, DEFAULT_CIRCUIT);
+    // Guarantee starter perks even if an older save predates one.
+    for (const id of STARTER_PERKS) {
+      if (!memCircuit.unlocked.includes(id)) memCircuit.unlocked.push(id);
+    }
+  }
+  return memCircuit;
+}
+
+function saveCircuit() {
+  write(CIRCUIT_KEY, loadCircuit());
+}
+
+export function addTrophies(n) {
+  const c = loadCircuit();
+  c.trophies += n;
+  saveCircuit();
+  return c.trophies;
+}
+
+export function spendTrophies(n) {
+  const c = loadCircuit();
+  if (c.trophies < n) return false;
+  c.trophies -= n;
+  saveCircuit();
+  return true;
+}
+
+export function unlockPerk(id) {
+  const c = loadCircuit();
+  if (!c.unlocked.includes(id)) { c.unlocked.push(id); saveCircuit(); }
+}
+
+export function recordRunDepth(d) {
+  const c = loadCircuit();
+  if (d > c.bestDepth) { c.bestDepth = d; saveCircuit(); }
 }
