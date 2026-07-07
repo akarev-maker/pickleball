@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/rules.test.js && node tests/depth.test.js && node tests/perks.test.js",
+    "test": "node tests/rules.test.js && node tests/depth.test.js && node tests/perks.test.js && node tests/circuit.test.js",
     "start": "python3 -m http.server 8000"
   }
 }
