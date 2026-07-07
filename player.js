@@ -94,6 +94,27 @@ function shade(hex, f) {
 
 const SKIN = '#e8b98a';
 const SHOE = '#232a30';
+const OUTLINE = 'rgba(20, 25, 22, 0.5)';
+
+// Draws a two-segment limb (thigh/shin or upper arm/forearm) from a joint.
+// a1: first-segment angle from straight down (positive = +x); a2: bend of
+// the second segment relative to the first. Returns the end point.
+function limb(ctx, x0, y0, a1, l1, a2, l2, width, color) {
+  const kx = x0 + Math.sin(a1) * l1;
+  const ky = y0 + Math.cos(a1) * l1;
+  const ex = kx + Math.sin(a1 + a2) * l2;
+  const ey = ky + Math.cos(a1 + a2) * l2;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(kx, ky);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  return { x: ex, y: ey };
+}
 
 export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = null) {
   const p = view.toPx(x, y);
@@ -107,121 +128,132 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     // Readability floor: far players never shrink into dots.
     const s = Math.max(view.scaleAt(y), view.scale * 0.66);
     const bob = moving
-      ? Math.abs(Math.sin(gait.walk)) * s * 0.15
-      : idleSway * s * 0.055;
+      ? Math.abs(Math.sin(gait.walk)) * s * 0.13
+      : idleSway * s * 0.05;
+    const side = facing === -1 ? 1 : -1;
+    const handDir = back ? -side : side;
     // Shadow on the court
     ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.beginPath();
     ctx.ellipse(p.px, p.py, s * 0.75, s * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Legs in shorts-tone with shoes; they scissor while moving.
-    ctx.strokeStyle = shade(color, 0.35);
-    ctx.lineWidth = Math.max(2, s * 0.24);
+
+    // Legs: articulated thigh + shin. Running gets a real cycle (front
+    // leg reaching, rear leg folded heel-up); standing is a soft-kneed
+    // athletic crouch.
+    const hipY = p.py - s * 1.08 - bob;
     for (let i = 0; i < 2; i++) {
-      const lx = i === 0 ? -0.3 : 0.3;
+      const hx0 = p.px + (i === 0 ? -0.2 : 0.2) * s;
       const stride = moving ? Math.sin(gait.walk + i * Math.PI) : 0;
-      const fx = p.px + (lx * 1.2 + stride * 0.42) * s;
-      const fy = p.py - Math.max(0, stride) * s * 0.3;
-      ctx.beginPath();
-      ctx.moveTo(p.px + lx * s, p.py - s * 0.9 - bob);
-      ctx.lineTo(fx, fy);
-      ctx.stroke();
+      const thigh = moving ? stride * 0.55 : (i === 0 ? -0.1 : 0.1) + idleSway * 0.02;
+      const knee = moving
+        ? -0.15 - Math.max(0, -stride) * 1.0
+        : -0.16;
+      const foot = limb(
+        ctx, hx0, hipY, thigh, s * 0.52, knee, s * 0.5,
+        Math.max(2, s * 0.22), SKIN,
+      );
       ctx.fillStyle = SHOE;
       ctx.beginPath();
-      ctx.ellipse(fx, fy, s * 0.17, s * 0.1, 0, 0, Math.PI * 2);
+      ctx.ellipse(foot.x + s * 0.05, foot.y, s * 0.17, s * 0.1, 0, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Free arm counter-swings on the run, hangs loose otherwise.
-    const side = facing === -1 ? 1 : -1;
-    const shy = p.py - s * 1.8 - bob;
-    const offAngle = 0.95 + (moving ? Math.sin(gait.walk) * 0.75 : idleSway * 0.12);
-    const ox = p.px - side * (s * 0.45 + Math.cos(offAngle) * s * 0.75);
-    const oy = shy + Math.sin(offAngle) * s * 0.55;
-    ctx.strokeStyle = SKIN;
-    ctx.lineWidth = Math.max(2, s * 0.2);
-    ctx.beginPath();
-    ctx.moveTo(p.px - side * s * 0.45, shy);
-    ctx.lineTo(ox, oy);
-    ctx.stroke();
-    ctx.fillStyle = SKIN;
-    ctx.beginPath();
-    ctx.arc(ox, oy, s * 0.12, 0, Math.PI * 2);
-    ctx.fill();
-    // Shorts under the jersey.
+
+    // Free arm: bent and ready in front, pumping on the run.
+    const shY = p.py - s * 1.95 - bob;
+    const freeSwing = moving ? Math.sin(gait.walk) * 0.6 : idleSway * 0.07;
+    limb(
+      ctx,
+      p.px - side * s * 0.42, shY,
+      -side * (0.78 + freeSwing), s * 0.42,
+      -side * 1.3, s * 0.38,
+      Math.max(2, s * 0.19), SKIN,
+    );
+
+    // Shorts, then the tapered jersey over them.
     ctx.fillStyle = shade(color, 0.55);
     ctx.beginPath();
-    ctx.ellipse(p.px, p.py - s * 1.0 - bob, s * 0.5, s * 0.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.px, p.py - s * 1.08 - bob, s * 0.42, s * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Jersey: a tapered torso with a collar seam.
+    const hipW = s * 0.36;
+    const shW = s * 0.46;
+    const hipLine = p.py - s * 1.12 - bob;
+    const shLine = p.py - s * 2.02 - bob;
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.ellipse(p.px, p.py - s * 1.55 - bob, s * 0.6, s * 0.78, 0, 0, Math.PI * 2);
+    ctx.moveTo(p.px - hipW, hipLine);
+    ctx.quadraticCurveTo(p.px - shW * 1.15, (hipLine + shLine) / 2, p.px - shW, shLine);
+    ctx.quadraticCurveTo(p.px, shLine - s * 0.24, p.px + shW, shLine);
+    ctx.quadraticCurveTo(p.px + shW * 1.15, (hipLine + shLine) / 2, p.px + hipW, hipLine);
+    ctx.quadraticCurveTo(p.px, hipLine + s * 0.14, p.px - hipW, hipLine);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.strokeStyle = shade(color, 0.6);
+    ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = Math.max(1.5, s * 0.07);
-    ctx.beginPath();
-    ctx.arc(p.px, p.py - s * 2.05 - bob, s * 0.32, 0.3, Math.PI - 0.3);
     ctx.stroke();
-    // Head with a team-color cap (brim shows on figures facing us).
-    const heady = p.py - s * 2.7 - bob;
+
+    // Head: skin, cap dome, brim + face for figures looking at the camera.
+    const heady = p.py - s * 2.52 - bob;
     ctx.fillStyle = SKIN;
     ctx.beginPath();
-    ctx.arc(p.px, heady, s * 0.38, 0, Math.PI * 2);
+    ctx.arc(p.px, heady, s * 0.36, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = Math.max(1.5, s * 0.06);
+    ctx.stroke();
     ctx.fillStyle = shade(color, 0.72);
     ctx.beginPath();
-    ctx.arc(p.px, heady - s * 0.05, s * 0.39, Math.PI, Math.PI * 2);
+    ctx.arc(p.px, heady - s * 0.06, s * 0.37, Math.PI, Math.PI * 2);
     ctx.fill();
     if (facing === 1) {
       ctx.beginPath();
-      ctx.ellipse(p.px, heady - s * 0.02, s * 0.42, s * 0.09, 0, 0, Math.PI);
+      ctx.ellipse(p.px, heady - s * 0.03, s * 0.4, s * 0.09, 0, 0, Math.PI);
       ctx.fill();
+      ctx.fillStyle = '#2b2420';
+      for (const ex of [-0.13, 0.13]) {
+        ctx.beginPath();
+        ctx.arc(p.px + ex * s, heady + s * 0.08, s * 0.045, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
-    // Paddle arm: winds up, then sweeps — across the body on a backhand.
-    // At rest it sways gently; on the run it pumps.
+
+    // Paddle arm: two segments — the elbow folds deep into the windup and
+    // straightens through contact. Mirrored across the body on a backhand.
     const armSway = swingT > 0 ? 0
-      : (moving ? Math.sin(gait.walk + Math.PI) * 0.3 : idleSway * 0.1);
-    const armAngle = 0.35 - 2.1 * sweep + armSway;
-    // The arm bends into the windup (sweep < 0) and extends through the hit.
-    const armLen = s * (0.95 + 0.3 * sweep);
-    const handDir = back ? -side : side;
-    const shx = p.px + side * s * 0.45;
-    const hx = shx + handDir * Math.cos(armAngle) * armLen;
-    const hy = shy + Math.sin(armAngle) * armLen * 0.55;
-    ctx.strokeStyle = SKIN;
-    ctx.lineWidth = Math.max(2, s * 0.2);
-    ctx.beginPath();
-    ctx.moveTo(shx, shy);
-    ctx.lineTo(hx, hy);
-    ctx.stroke();
+      : (moving ? Math.sin(gait.walk + Math.PI) * 0.35 : idleSway * 0.08);
+    const upper = handDir * (0.65 + sweep * 1.5) + armSway * handDir;
+    const elbow = handDir * (-1.15 + Math.abs(sweep) * (sweep > 0 ? 0.95 : 0.35));
+    const hand = limb(
+      ctx,
+      p.px + side * s * 0.42, shY,
+      upper, s * 0.42,
+      elbow, s * 0.4,
+      Math.max(2, s * 0.19), SKIN,
+    );
+    // Grip, handle, and the blade in the equipped paddle color.
     ctx.fillStyle = SKIN;
     ctx.beginPath();
-    ctx.arc(hx, hy, s * 0.12, 0, Math.PI * 2);
+    ctx.arc(hand.x, hand.y, s * 0.11, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#7a4a2b';
-    ctx.lineWidth = Math.max(2, s * 0.14);
+    ctx.lineWidth = Math.max(2, s * 0.13);
     ctx.beginPath();
-    ctx.moveTo(hx, hy);
-    ctx.lineTo(hx + handDir * s * 0.2, hy - s * 0.35);
+    ctx.moveTo(hand.x, hand.y);
+    ctx.lineTo(hand.x + handDir * s * 0.16, hand.y - s * 0.3);
     ctx.stroke();
-    // Blade in the equipped paddle color.
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.ellipse(
-      hx + handDir * s * 0.28,
-      hy - s * 0.7,
-      s * 0.32,
-      s * 0.42,
+      hand.x + handDir * s * 0.24,
+      hand.y - s * 0.62,
+      s * 0.3,
+      s * 0.4,
       handDir * (0.4 + 1.4 * sweep),
       0,
       Math.PI * 2,
     );
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = Math.max(1.5, s * 0.08);
     ctx.stroke();
     return;
   }
