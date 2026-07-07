@@ -24,7 +24,7 @@ import { Fx } from './fx.js';
 import { ReplayRecorder } from './replay.js';
 import {
   recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors, equipped,
-  loadCircuit, addTrophies, recordRunDepth,
+  loadCircuit, addTrophies, recordRunDepth, spendTrophies, unlockPerk,
 } from './progress.js';
 
 const BANNER_SECS = 2;
@@ -417,7 +417,16 @@ function afterCircuitMatchWon() {
   });
 }
 
-function openShop() { openCircuit(); } // replaced in Task 8 by the Pro Shop
+function openShop() {
+  ui.showProShop(loadCircuit(), {
+    onBuy: (id) => {
+      const perk = perkById(id);
+      if (spendTrophies(perk.cost)) unlockPerk(id);
+      openShop(); // re-render with the new balance / owned state
+    },
+    onBack: openCircuit,
+  });
+}
 
 function startTournamentMatch() {
   mode = 'tournament';

@@ -5,7 +5,7 @@ import { PLAYER, CPU } from './rules.js';
 import {
   PADDLES, BALLS, BACKDROPS, isUnlocked, equip, equipped, loadStats, dailyChallenge,
 } from './progress.js';
-import { perkById as PERKS_BY_ID } from './perks.js';
+import { perkById as PERKS_BY_ID, PERKS } from './perks.js';
 
 const scoreEl = document.getElementById('score');
 const bannerEl = document.getElementById('banner');
@@ -286,6 +286,43 @@ export function showRunSummary({ title, line, detail }, { onContinue }) {
   document.getElementById('run-summary-continue').onclick = () => {
     runSummaryEl.classList.add('hidden');
     onContinue();
+  };
+}
+
+export function showProShop(meta, { onBuy, onBack }) {
+  hideOverlays();
+  const el = document.getElementById('pro-shop');
+  el.classList.remove('hidden');
+  document.getElementById('shop-balance').textContent = `${meta.trophies} Trophies`;
+  const list = document.getElementById('shop-list');
+  list.innerHTML = '';
+  for (const perk of PERKS) {
+    if (perk.cost <= 0) continue; // starter perks aren't sold
+    const owned = meta.unlocked.includes(perk.id);
+    const row = document.createElement('div');
+    row.className = `shop-row ${owned ? 'owned' : ''}`.trim();
+    const info = document.createElement('div');
+    info.className = 'pinfo';
+    info.innerHTML = `<b>${perk.name}</b> — ${perk.desc}`;
+    row.appendChild(info);
+    if (owned) {
+      const tag = document.createElement('span');
+      tag.className = 'pinfo';
+      tag.textContent = 'Owned';
+      row.appendChild(tag);
+    } else {
+      const buy = document.createElement('button');
+      buy.className = 'shop-buy';
+      buy.textContent = `${perk.cost}`;
+      buy.disabled = meta.trophies < perk.cost;
+      buy.onclick = () => onBuy(perk.id);
+      row.appendChild(buy);
+    }
+    list.appendChild(row);
+  }
+  document.getElementById('shop-back').onclick = () => {
+    el.classList.add('hidden');
+    onBack();
   };
 }
 

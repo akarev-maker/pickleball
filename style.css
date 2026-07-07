@@ -622,3 +622,14 @@ button.switch.on .switch-knob {
 .draft-card .prarity { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
 .draft-card .pdesc { font-size: 13px; line-height: 1.4; margin-top: 6px; color: var(--text-dim); }
 .draft-card.rare { border-color: #ffd166; background: rgba(255, 209, 102, 0.1); }
+
+#shop-list { margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.shop-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  text-align: left;
+}
+.shop-row .pinfo { font-size: 13px; color: var(--text-dim); }
+.shop-row .pinfo b { color: var(--text); font-family: var(--font-display); font-size: 16px; }
+.shop-row.owned { opacity: 0.55; }
+.shop-buy { min-height: 36px; font-size: 14px; padding: 6px 14px; }

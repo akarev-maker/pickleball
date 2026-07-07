@@ -46,6 +46,7 @@ export function installDom() {
     'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',
     'mode-circuit', 'circuit-start', 'circuit-bracket', 'circuit-meta',
     'circuit-play', 'circuit-shop', 'circuit-back',
+    'pro-shop', 'shop-balance', 'shop-list', 'shop-back',
     'run-summary', 'run-summary-title', 'run-summary-line', 'run-summary-detail',
     'run-summary-continue',
     'champion', 'champion-restart',
