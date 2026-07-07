@@ -165,6 +165,7 @@ export function dailyChallenge(dateStr = todayStr()) {
 export function loadCircuit() {
   if (!memCircuit) {
     memCircuit = read(CIRCUIT_KEY, DEFAULT_CIRCUIT);
+    memCircuit.unlocked = memCircuit.unlocked.slice(); // never alias DEFAULT_CIRCUIT / the parsed ref
     // Guarantee starter perks even if an older save predates one.
     for (const id of STARTER_PERKS) {
       if (!memCircuit.unlocked.includes(id)) memCircuit.unlocked.push(id);
