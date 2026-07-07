@@ -21,6 +21,7 @@
           <button id="mode-quick" class="secondary">Quick Play</button>
           <button id="mode-doubles" class="secondary">Doubles</button>
           <button id="mode-skinny" class="secondary">Skinny Singles</button>
+          <button id="mode-circuit" class="secondary">The Circuit</button>
         </div>
         <div class="difficulty hidden" id="difficulty-row">
           <p id="difficulty-title"></p>
@@ -64,6 +65,25 @@
           <button id="ladder-reset" class="secondary">Reset ladder</button>
           <button id="ladder-back" class="secondary">Menu</button>
         </div>
+      </div>
+
+      <div id="circuit-start" class="overlay hidden">
+        <h1>The Circuit</h1>
+        <p class="tagline">Climb 9 rungs. Draft perks. Bank Trophies.</p>
+        <div id="circuit-bracket"></div>
+        <div id="circuit-meta" class="tagline"></div>
+        <div class="modes">
+          <button id="circuit-play"></button>
+          <button id="circuit-shop" class="secondary">Pro Shop</button>
+          <button id="circuit-back" class="secondary">Menu</button>
+        </div>
+      </div>
+
+      <div id="run-summary" class="overlay hidden">
+        <h1 id="run-summary-title"></h1>
+        <p id="run-summary-line" class="tagline"></p>
+        <div id="run-summary-detail"></div>
+        <button id="run-summary-continue">Continue</button>
       </div>
 
       <div id="champion" class="overlay hidden">

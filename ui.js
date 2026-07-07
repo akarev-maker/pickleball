@@ -23,6 +23,8 @@ const gameoverTitle = document.getElementById('gameover-title');
 const gameoverLine = document.getElementById('gameover-line');
 const restartBtn = document.getElementById('restart');
 const muteBtn = document.getElementById('mute');
+const circuitStartEl = document.getElementById('circuit-start');
+const runSummaryEl = document.getElementById('run-summary');
 
 let bannerTimer = null;
 
@@ -53,7 +55,7 @@ export function hideBanner() {
   bannerEl.classList.add('hidden');
 }
 
-export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {}) {
+export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics, onCircuit } = {}) {
   hideOverlays();
   menuEl.classList.remove('hidden');
 
@@ -98,6 +100,10 @@ export function showModeMenu(onQuick, onTournament, { onDaily, onCosmetics } = {
   }
   document.getElementById('menu-stats').onclick = () => showStats();
   document.getElementById('menu-locker').onclick = () => showLocker(onCosmetics);
+  const circuitBtn = document.getElementById('mode-circuit');
+  if (circuitBtn) {
+    circuitBtn.onclick = () => { menuEl.classList.add('hidden'); if (onCircuit) onCircuit(); };
+  }
   // Difficulty buttons are always wired so the flow is one click in tests.
   for (const btn of menuEl.querySelectorAll('button[data-difficulty]')) {
     btn.onclick = () => {
@@ -246,8 +252,48 @@ export function onMuteClick(fn) {
   muteBtn.onclick = fn;
 }
 
+export function showCircuitStart(run, meta, { onStart, onShop, onBack }) {
+  hideOverlays();
+  circuitStartEl.classList.remove('hidden');
+  const bracket = document.getElementById('circuit-bracket');
+  bracket.innerHTML = '';
+  for (let r = 1; r <= 9; r++) {
+    const chip = document.createElement('span');
+    const cls = r < run.rung ? 'cleared' : (r === run.rung ? 'current' : '');
+    chip.className = `rung-chip ${cls} ${r === 9 ? 'boss' : ''}`.trim();
+    chip.textContent = r === 9 ? '★' : String(r);
+    bracket.appendChild(chip);
+  }
+  document.getElementById('circuit-meta').textContent =
+    `${meta.trophies} Trophies · best climb: rung ${meta.bestDepth || 0}`;
+  const playBtn = document.getElementById('circuit-play');
+  playBtn.textContent = run.rung > 1 ? `Continue — rung ${run.rung}` : 'Start a run';
+  playBtn.onclick = onStart;
+  document.getElementById('circuit-shop').onclick = onShop;
+  document.getElementById('circuit-back').onclick = () => {
+    circuitStartEl.classList.add('hidden');
+    onBack();
+  };
+}
+
+export function showRunSummary({ title, line, detail }, { onContinue }) {
+  hideOverlays();
+  runSummaryEl.classList.remove('hidden');
+  document.getElementById('run-summary-title').textContent = title;
+  document.getElementById('run-summary-line').textContent = line;
+  document.getElementById('run-summary-detail').innerHTML = detail;
+  document.getElementById('run-summary-continue').onclick = () => {
+    runSummaryEl.classList.add('hidden');
+    onContinue();
+  };
+}
+
 export function hideOverlays() {
-  const extras = [document.getElementById('stats'), document.getElementById('locker')];
+  const extras = [
+    document.getElementById('stats'), document.getElementById('locker'),
+    document.getElementById('circuit-start'), document.getElementById('run-summary'),
+    document.getElementById('pro-shop'),
+  ].filter(Boolean);
   for (const el of [menuEl, ladderEl, championEl, gameoverEl, pauseEl, ...extras]) {
     el.classList.add('hidden');
   }

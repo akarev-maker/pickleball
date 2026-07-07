@@ -15,11 +15,16 @@ import { Player } from './player.js';
 import { Cpu } from './cpu.js';
 import * as ui from './ui.js';
 import { ROSTER, loadRung, saveRung, resetLadder } from './ladder.js';
+import {
+  matchConfig, newRun, advance, fail, rungsCleared, trophies,
+} from './circuit.js';
+import { perkById } from './perks.js';
 import { initAudio, sfx, toggleMute, isMuted } from './audio.js';
 import { Fx } from './fx.js';
 import { ReplayRecorder } from './replay.js';
 import {
   recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors, equipped,
+  loadCircuit, addTrophies, recordRunDepth,
 } from './progress.js';
 
 const BANNER_SECS = 2;
@@ -173,6 +178,8 @@ const courtLeft = () => (variant === 'skinny' ? SKINNY_L : 0);
 const courtRight = () => (variant === 'skinny' ? SKINNY_R : COURT_W);
 let bestOf3 = false;
 let matchGames = { [PLAYER]: 0, [CPU]: 0 };
+let run = null; // active Circuit run
+let matchTarget = 11; // first-to-N for the current match
 let opponent = null; // roster profile in tournament mode
 let introTimer = 0;
 let pendingResult = null;
@@ -260,6 +267,7 @@ function setVariant(v) {
 function startGame(difficulty, opts = {}) {
   mode = 'quick';
   activePerks = new PerkSet();
+  matchTarget = 11;
   opponent = null;
   lastDifficulty = difficulty;
   lastOpts = opts;
@@ -284,6 +292,7 @@ function startGame(difficulty, opts = {}) {
 function startDaily() {
   mode = 'daily';
   activePerks = new PerkSet();
+  matchTarget = 11;
   setVariant('singles');
   bestOf3 = false;
   daily = dailyChallenge();
@@ -336,6 +345,7 @@ function showMainMenu() {
   ui.showModeMenu(startGame, openLadder, {
     onDaily: startDaily,
     onCosmetics: applyCosmetics,
+    onCircuit: openCircuit,
   });
 }
 
@@ -348,9 +358,59 @@ function openLadder() {
   });
 }
 
+function openCircuit() {
+  state = 'menu';
+  if (!run || !run.alive) run = newRun();
+  ui.showCircuitStart(run, loadCircuit(), {
+    onStart: startCircuitMatch,
+    onShop: openShop,
+    onBack: showMainMenu,
+  });
+}
+
+function startCircuitMatch() {
+  mode = 'circuit';
+  setVariant('singles');
+  bestOf3 = false;
+  clearModifiers();
+  const cfg = matchConfig(run.rung);
+  matchTarget = cfg.target;
+  opponent = cfg.opponent;
+  cpu.setProfile(opponent);
+  activePerks = new PerkSet(run.perks);
+  activePerks.resetGame();
+  score = new Score();
+  ui.updateScore(score, score.servingSide, opponent.name);
+  ui.showBanner(`Rung ${run.rung}: ${opponent.name} — first to ${matchTarget}`, 0);
+  introTimer = 2.5;
+  state = 'intro';
+}
+
+function endCircuitRun() {
+  const cleared = rungsCleared(run);
+  const gained = trophies(run);
+  addTrophies(gained);
+  recordRunDepth(cleared);
+  const won = run.won;
+  ui.showRunSummary({
+    title: won ? 'Circuit Champion!' : 'Run over',
+    line: won ? 'You cleared all nine rungs.' : `You reached rung ${run.rung}.`,
+    detail: `Rungs cleared: <b>${cleared}</b><br>Trophies earned: <b>+${gained}</b>`,
+  }, { onContinue: () => { run = null; openCircuit(); } });
+}
+
+function afterCircuitMatchWon() {
+  advance(run);
+  if (run.won) endCircuitRun();
+  else startCircuitMatch();
+}
+
+function openShop() { openCircuit(); } // replaced in Task 8 by the Pro Shop
+
 function startTournamentMatch() {
   mode = 'tournament';
   activePerks = new PerkSet();
+  matchTarget = 11;
   setVariant('singles');
   bestOf3 = false;
   clearModifiers();
@@ -1024,9 +1084,18 @@ function frame(now) {
     const skipped = bannerSkip && bannerTimer < BANNER_SECS - 0.35;
     if (bannerTimer <= 0 || skipped) {
       ui.hideBanner();
-      const winner = score.winner();
+      const winner = score.winner(matchTarget);
       if (!winner) {
         startServe();
+      } else if (mode === 'circuit') {
+        recordGame({ won: winner === PLAYER, shutout: winner === PLAYER && score.get(CPU) === 0, champion: false });
+        if (winner === PLAYER) {
+          afterCircuitMatchWon();
+        } else {
+          fail(run);
+          state = 'game-over';
+          endCircuitRun();
+        }
       } else if (bestOf3 && ++matchGames[winner] < 2) {
         // Game won, match still live: record it and play the next game.
         recordGame({ won: winner === PLAYER, shutout: score.get(other(winner)) === 0, champion: false });
@@ -1065,6 +1134,7 @@ window.__pickleball = {
   getRally: () => rally,
   setPerks: (ids) => { activePerks = new PerkSet(ids); },
   getPerks: () => activePerks,
+  getCircuitRun: () => run,
 };
 
 applyCosmetics();

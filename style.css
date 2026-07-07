@@ -573,3 +573,27 @@ button.switch.on .switch-knob {
 .hidden {
   display: none !important;
 }
+
+#circuit-bracket {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: 14px 0;
+}
+
+.rung-chip {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.rung-chip.cleared { color: var(--accent-ink); background: var(--accent); border-color: transparent; }
+.rung-chip.current { color: var(--accent); border-color: var(--accent); }
+.rung-chip.boss { font-weight: 700; }
+
+#run-summary-detail { margin: 12px 0 4px; font-size: 16px; line-height: 1.7; }
