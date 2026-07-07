@@ -370,6 +370,7 @@ function openCircuit() {
 
 function startCircuitMatch() {
   mode = 'circuit';
+  ui.hideOverlays(); // clear the start/draft overlay before the match begins
   setVariant('singles');
   bestOf3 = false;
   clearModifiers();
