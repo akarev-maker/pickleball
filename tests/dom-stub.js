@@ -49,6 +49,7 @@ export function installDom() {
     'run-summary', 'run-summary-title', 'run-summary-line', 'run-summary-detail',
     'run-summary-continue',
     'champion', 'champion-restart',
+    'draft', 'draft-cards', 'draft-owned',
     'pause', 'pause-resume', 'pause-restart', 'pause-quit',
     'menu-daily', 'menu-daily-label', 'menu-stats', 'menu-locker',
     'stats', 'stats-list', 'stats-back', 'locker', 'locker-list', 'locker-back',

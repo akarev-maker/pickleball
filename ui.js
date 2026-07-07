@@ -5,6 +5,7 @@ import { PLAYER, CPU } from './rules.js';
 import {
   PADDLES, BALLS, BACKDROPS, isUnlocked, equip, equipped, loadStats, dailyChallenge,
 } from './progress.js';
+import { perkById as PERKS_BY_ID } from './perks.js';
 
 const scoreEl = document.getElementById('score');
 const bannerEl = document.getElementById('banner');
@@ -288,11 +289,32 @@ export function showRunSummary({ title, line, detail }, { onContinue }) {
   };
 }
 
+export function showDraft(optionIds, ownedIds, { onPick }) {
+  hideOverlays();
+  const el = document.getElementById('draft');
+  el.classList.remove('hidden');
+  const cards = document.getElementById('draft-cards');
+  cards.innerHTML = '';
+  for (const id of optionIds) {
+    const perk = PERKS_BY_ID(id);
+    const card = document.createElement('button');
+    card.className = `draft-card ${perk.rarity === 'rare' ? 'rare' : ''}`.trim();
+    card.innerHTML = `<div class="pname">${perk.name}</div>`
+      + `<div class="prarity">${perk.rarity}</div>`
+      + `<div class="pdesc">${perk.desc}</div>`;
+    card.onclick = () => { el.classList.add('hidden'); onPick(id); };
+    cards.appendChild(card);
+  }
+  document.getElementById('draft-owned').textContent = ownedIds.length
+    ? `Your build: ${ownedIds.map((i) => PERKS_BY_ID(i).name).join(', ')}`
+    : 'Your build: (empty)';
+}
+
 export function hideOverlays() {
   const extras = [
     document.getElementById('stats'), document.getElementById('locker'),
     document.getElementById('circuit-start'), document.getElementById('run-summary'),
-    document.getElementById('pro-shop'),
+    document.getElementById('pro-shop'), document.getElementById('draft'),
   ].filter(Boolean);
   for (const el of [menuEl, ladderEl, championEl, gameoverEl, pauseEl, ...extras]) {
     el.classList.add('hidden');

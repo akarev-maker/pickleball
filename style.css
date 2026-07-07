@@ -597,3 +597,28 @@ button.switch.on .switch-knob {
 .rung-chip.boss { font-weight: 700; }
 
 #run-summary-detail { margin: 12px 0 4px; font-size: 16px; line-height: 1.7; }
+
+#draft-cards {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 16px 0 10px;
+}
+
+.draft-card {
+  width: 150px;
+  padding: 14px 12px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid rgba(184, 233, 134, 0.5);
+  background: rgba(184, 233, 134, 0.08);
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+}
+
+.draft-card:hover { background: rgba(184, 233, 134, 0.16); }
+.draft-card .pname { font-family: var(--font-display); font-size: 18px; color: var(--accent); }
+.draft-card .prarity { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.draft-card .pdesc { font-size: 13px; line-height: 1.4; margin-top: 6px; color: var(--text-dim); }
+.draft-card.rare { border-color: #ffd166; background: rgba(255, 209, 102, 0.1); }

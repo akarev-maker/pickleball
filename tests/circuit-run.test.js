@@ -37,6 +37,8 @@ while (frames < 60 * 600) {
   if (ty > player.y + 0.5) w.add('down');
   setKeys(w);
   const st = getState();
+  const draftCards = dom.elements['draft-cards'];
+  if (draftCards.children.length) draftCards.children[0].onclick();
   if (st === 'serving' || st === 'replay') {
     if (!held.has('Space')) { dom.keyDown('Space'); held.add('Space'); sf = 0; }
     else if (st === 'serving' && ++sf > 20) { dom.keyUp('Space'); held.delete('Space'); }

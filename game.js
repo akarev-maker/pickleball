@@ -16,7 +16,7 @@ import { Cpu } from './cpu.js';
 import * as ui from './ui.js';
 import { ROSTER, loadRung, saveRung, resetLadder } from './ladder.js';
 import {
-  matchConfig, newRun, advance, fail, rungsCleared, trophies,
+  matchConfig, newRun, advance, fail, rungsCleared, trophies, draftOptions,
 } from './circuit.js';
 import { perkById } from './perks.js';
 import { initAudio, sfx, toggleMute, isMuted } from './audio.js';
@@ -404,9 +404,17 @@ function afterCircuitMatchWon() {
   if (run.won) {
     state = 'game-over';
     endCircuitRun();
-  } else {
-    startCircuitMatch();
+    return;
   }
+  const options = draftOptions(run.perks, loadCircuit().unlocked);
+  if (options.length === 0) { startCircuitMatch(); return; } // nothing left to draft
+  state = 'menu';
+  ui.showDraft(options, run.perks, {
+    onPick: (id) => {
+      run.perks.push(id);
+      startCircuitMatch();
+    },
+  });
 }
 
 function openShop() { openCircuit(); } // replaced in Task 8 by the Pro Shop
