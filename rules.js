@@ -42,9 +42,9 @@ export class Score {
     return this[side];
   }
 
-  winner() {
+  winner(target = 11) {
     for (const side of [PLAYER, CPU]) {
-      if (this[side] >= 11 && this[side] - this[other(side)] >= 2) return side;
+      if (this[side] >= target && this[side] - this[other(side)] >= 2) return side;
     }
     return null;
   }

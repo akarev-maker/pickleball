@@ -67,6 +67,15 @@ test('10-10 then 11-10 is not a win (win by 2)', () => {
   assertEqual(s.winner(), PLAYER);
 });
 
+test('winner respects a custom target (first to 4, win by 2)', () => {
+  const s = new Score();
+  s[PLAYER] = 4; s[CPU] = 3;
+  assertEqual(s.winner(4), null, 'must win by 2');
+  s[CPU] = 2;
+  assertEqual(s.winner(4), PLAYER, '4-2 wins a first-to-4');
+  assertEqual(s.winner(), null, 'default target is still 11');
+});
+
 // --- inKitchen ---
 
 test('kitchen spans y 15..29', () => {
