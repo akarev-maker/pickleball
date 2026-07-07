@@ -16,7 +16,11 @@ function makeElement(id) {
   const el = {
     id,
     textContent: '',
-    innerHTML: '',
+    _html: '',
+    get innerHTML() { return el._html; },
+    set innerHTML(v) { el._html = v; if (v === '') el.children = []; },
+    children: [],
+    appendChild(c) { el.children.push(c); return c; },
     style: {},
     dataset: {},
     onclick: null,
@@ -40,7 +44,13 @@ export function installDom() {
     'mode-grid', 'difficulty-title', 'difficulty-back',
     'mode-quick', 'mode-tournament', 'mode-doubles', 'mode-skinny', 'best3',
     'ladder', 'ladder-list', 'ladder-play', 'ladder-reset', 'ladder-back',
+    'mode-circuit', 'circuit-start', 'circuit-bracket', 'circuit-meta',
+    'circuit-play', 'circuit-shop', 'circuit-back',
+    'pro-shop', 'shop-balance', 'shop-list', 'shop-back',
+    'run-summary', 'run-summary-title', 'run-summary-line', 'run-summary-detail',
+    'run-summary-continue',
     'champion', 'champion-restart',
+    'draft', 'draft-cards', 'draft-owned',
     'pause', 'pause-resume', 'pause-restart', 'pause-quit',
     'menu-daily', 'menu-daily-label', 'menu-stats', 'menu-locker',
     'stats', 'stats-list', 'stats-back', 'locker', 'locker-list', 'locker-back',
@@ -69,7 +79,10 @@ export function installDom() {
   const listeners = { keydown: [], keyup: [], resize: [] };
   const raf = { callback: null };
 
-  globalThis.document = { getElementById: (id) => elements[id] };
+  globalThis.document = {
+    getElementById: (id) => elements[id],
+    createElement: () => makeElement('dynamic'),
+  };
   globalThis.window = {
     devicePixelRatio: 1,
     innerWidth: 800,

@@ -18,6 +18,11 @@ No dependencies, no build step.
 - **Best of 3:** toggle on the difficulty row for any quick-play variant.
 - **Daily challenge:** a date-seeded opponent and physics modifier (crosswinds,
   moon gravity…) — one win credit per day.
+- **The Circuit:** a roguelike career run — climb 9 rungs of escalating
+  matches (first to 4, then 7, then an 11-point boss), drafting a perk
+  between each that changes how you play and stacks all run. Lose and the
+  run ends, but how far you climbed banks **Trophies** you spend in the
+  **Pro Shop** to unlock more perks. Everything persists in your browser.
 
 Points end with a slow-mo replay of the final shot (any key skips it). Sound
 is fully synthesized — mute with **M** or the speaker button.

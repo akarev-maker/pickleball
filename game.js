@@ -9,16 +9,22 @@ import {
   COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT, MARGIN,
 } from './court.js';
 import { Ball } from './ball.js';
-import { SMASH_HEIGHT, serveParams, lobParams, smashParams } from './shots.js';
+import { serveParams, lobParams, smashParams } from './shots.js';
+import { PerkSet } from './perks.js';
 import { Player } from './player.js';
 import { Cpu } from './cpu.js';
 import * as ui from './ui.js';
 import { ROSTER, loadRung, saveRung, resetLadder } from './ladder.js';
+import {
+  matchConfig, newRun, advance, fail, rungsCleared, trophies, draftOptions,
+} from './circuit.js';
+import { perkById } from './perks.js';
 import { initAudio, sfx, toggleMute, isMuted } from './audio.js';
 import { Fx } from './fx.js';
 import { ReplayRecorder } from './replay.js';
 import {
   recordPoint, recordGame, recordDailyWin, dailyChallenge, todayStr, equippedColors, equipped,
+  loadCircuit, addTrophies, recordRunDepth, spendTrophies, unlockPerk,
 } from './progress.js';
 
 const BANNER_SECS = 2;
@@ -172,6 +178,8 @@ const courtLeft = () => (variant === 'skinny' ? SKINNY_L : 0);
 const courtRight = () => (variant === 'skinny' ? SKINNY_R : COURT_W);
 let bestOf3 = false;
 let matchGames = { [PLAYER]: 0, [CPU]: 0 };
+let run = null; // active Circuit run
+let matchTarget = 11; // first-to-N for the current match
 let opponent = null; // roster profile in tournament mode
 let introTimer = 0;
 let pendingResult = null;
@@ -182,6 +190,7 @@ let serveX = 0;
 let serveTimer = 0;
 let serveCharging = false;
 let demoAutoServe = false; // #demo dev mode: serve without input
+let activePerks = new PerkSet(); // empty outside the Circuit → all hooks neutral
 let bannerTimer = 0;
 let bannerSkip = false; // an input dismisses the point banner early
 let prevBallX = 0;
@@ -257,6 +266,8 @@ function setVariant(v) {
 
 function startGame(difficulty, opts = {}) {
   mode = 'quick';
+  activePerks = new PerkSet();
+  matchTarget = 11;
   opponent = null;
   lastDifficulty = difficulty;
   lastOpts = opts;
@@ -280,6 +291,8 @@ function startGame(difficulty, opts = {}) {
 
 function startDaily() {
   mode = 'daily';
+  activePerks = new PerkSet();
+  matchTarget = 11;
   setVariant('singles');
   bestOf3 = false;
   daily = dailyChallenge();
@@ -316,6 +329,7 @@ function togglePause() {
         ui.hidePause();
         if (mode === 'tournament') startTournamentMatch();
         else if (mode === 'daily') startDaily();
+        else if (mode === 'circuit') startCircuitMatch();
         else startGame(lastDifficulty, lastOpts);
       },
       onQuit: () => {
@@ -332,6 +346,7 @@ function showMainMenu() {
   ui.showModeMenu(startGame, openLadder, {
     onDaily: startDaily,
     onCosmetics: applyCosmetics,
+    onCircuit: openCircuit,
   });
 }
 
@@ -344,8 +359,81 @@ function openLadder() {
   });
 }
 
+function openCircuit() {
+  state = 'menu';
+  if (!run || !run.alive) run = newRun();
+  ui.showCircuitStart(run, loadCircuit(), {
+    onStart: startCircuitMatch,
+    onShop: openShop,
+    onBack: showMainMenu,
+  });
+}
+
+function startCircuitMatch() {
+  mode = 'circuit';
+  ui.hideOverlays(); // clear the start/draft overlay before the match begins
+  setVariant('singles');
+  bestOf3 = false;
+  clearModifiers();
+  const cfg = matchConfig(run.rung);
+  matchTarget = cfg.target;
+  opponent = cfg.opponent;
+  cpu.setProfile(opponent);
+  activePerks = new PerkSet(run.perks);
+  activePerks.resetGame();
+  score = new Score();
+  ui.updateScore(score, score.servingSide, opponent.name);
+  ui.showBanner(`Rung ${run.rung}: ${opponent.name} — first to ${matchTarget}`, 0);
+  introTimer = 2.5;
+  state = 'intro';
+}
+
+function endCircuitRun() {
+  const cleared = rungsCleared(run);
+  const gained = trophies(run);
+  addTrophies(gained);
+  recordRunDepth(cleared);
+  const won = run.won;
+  ui.showRunSummary({
+    title: won ? 'Circuit Champion!' : 'Run over',
+    line: won ? 'You cleared all nine rungs.' : `You reached rung ${run.rung}.`,
+    detail: `Rungs cleared: <b>${cleared}</b><br>Trophies earned: <b>+${gained}</b>`,
+  }, { onContinue: () => { run = null; openCircuit(); } });
+}
+
+function afterCircuitMatchWon() {
+  advance(run);
+  if (run.won) {
+    state = 'game-over';
+    endCircuitRun();
+    return;
+  }
+  const options = draftOptions(run.perks, loadCircuit().unlocked);
+  if (options.length === 0) { startCircuitMatch(); return; } // nothing left to draft
+  state = 'menu';
+  ui.showDraft(options, run.perks, {
+    onPick: (id) => {
+      run.perks.push(id);
+      startCircuitMatch();
+    },
+  });
+}
+
+function openShop() {
+  ui.showProShop(loadCircuit(), {
+    onBuy: (id) => {
+      const perk = perkById(id);
+      if (spendTrophies(perk.cost)) unlockPerk(id);
+      openShop(); // re-render with the new balance / owned state
+    },
+    onBack: openCircuit,
+  });
+}
+
 function startTournamentMatch() {
   mode = 'tournament';
+  activePerks = new PerkSet();
+  matchTarget = 11;
   setVariant('singles');
   bestOf3 = false;
   clearModifiers();
@@ -505,8 +593,11 @@ function playerShot() {
   const { dink, spin, lob } = swingMods;
   const held = charge;
   // You can only unload on a ball you take high — power on a low ball is
-  // throttled so a full meter doesn't just drill the net.
-  const power = held * Math.max(0.3, Math.min(1, ball.z / 4));
+  // throttled so a full meter doesn't just drill the net. Power throttle
+  // plus perk boosts (Cannon/Overdrive); Overdrive lifts the low-ball
+  // throttle so you can flatten anything.
+  const power = Math.min(1,
+    held * Math.max(activePerks.throttleFloor(), Math.min(1, ball.z / 4)) * activePerks.powerMult());
   charge = 0;
 
   if (lob) {
@@ -523,6 +614,7 @@ function playerShot() {
       apexZ: lobParams(held).apexZ,
       power: 0,
       spin: 0,
+      lob: true,
     };
   }
 
@@ -544,14 +636,14 @@ function playerShot() {
 
   // Overhead smash: any swing (drive or spin) contacting the ball above
   // SMASH_HEIGHT is punched steeply down at full power.
-  if (ball.z >= SMASH_HEIGHT) {
+  if (ball.z >= activePerks.smashHeight()) {
     const sp = smashParams(ball.z, power);
     const dir = player.moveDir();
     return {
       tx: aim.active ? aim.x : clamp(CENTER_X + dir.dx * 7 + rand(-1.5, 1.5), 1, COURT_W - 1),
       ty: aim.active ? aim.y : clamp(9 + dir.dy * 6, 2, NET_Y - 2),
       apexZ: sp.apexZ,
-      power,
+      power: Math.min(1, power + activePerks.smashBonus()),
       timeScale: sp.timeScale,
       spin: 0,
       smash: true,
@@ -604,8 +696,11 @@ function applyStress(shot, hitter, base) {
   shot.apexZ = Math.max(3.2, shot.apexZ - stress * rand(0, 2));
 }
 
-function hitterInKitchen(who) {
-  return inKitchen(who.y) && who.x > 0 && who.x < COURT_W;
+function hitterInKitchen(who, tol = 0) {
+  if (who.x <= 0 || who.x >= COURT_W) return false;
+  if (!inKitchen(who.y)) return false;
+  // Kitchen Ninja lets the player stand a little inside without faulting.
+  return who.y > KITCHEN_TOP + tol && who.y < KITCHEN_BOTTOM - tol;
 }
 
 // The return of serve and the third shot must be played off the bounce;
@@ -661,13 +756,13 @@ function handleHits() {
   // fault — the rules call it.
   if (swingWindow > 0) {
     if (ball.inFlight && ball.vy > 0 && rally.lastHitter !== PLAYER
-        && player.canReach(ball)) {
+        && player.canReach(ball, activePerks.reachBonus())) {
       swingWindow = 0;
       const volley = !rally.bouncedSinceLastHit;
-      const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player) });
+      const result = rally.recordHit(PLAYER, { volley, inKitchen: hitterInKitchen(player, activePerks.kitchenTolerance()) });
       if (result) return result;
       const shot = playerShot();
-      applyStress(shot, player, 0.7 + 0.5 * shot.power);
+      applyStress(shot, player, (0.7 + 0.5 * shot.power) * activePerks.scatterMult(shot));
       if (shot.dink) sfx.dink();
       else if (shot.smash) sfx.smash();
       else sfx.paddle(shot.power);
@@ -686,7 +781,7 @@ function handleHits() {
 
   // Your doubles partner still plays automatically.
   if (ball.vy > 0 && playable && rally.lastHitter !== PLAYER && !mustLetBounce()
-      && variant === 'doubles' && !player.canReach(ball)) {
+      && variant === 'doubles' && !player.canReach(ball, activePerks.reachBonus())) {
     const r = botHit(partner, PLAYER, cpu);
     if (r !== undefined) return r;
   }
@@ -746,6 +841,15 @@ function handleNetCrossing() {
     return;
   }
 
+  const mine = prevBallY > NET_Y; // the player's shot is crossing to the CPU side
+  if (hit.kind === 'contact' && mine && activePerks.netMagnet()) {
+    sfx.net();
+    ball.vy *= 0.3;
+    ball.vx *= 0.5;
+    ball.vz = Math.min(ball.vz, 1);
+    return;
+  }
+
   sfx.net();
   sfx.ooh();
   fx.spawnNet(ball.x, NET_Y);
@@ -769,7 +873,7 @@ function handleNetCrossing() {
 }
 
 function updateRally(dt) {
-  player.update(dt, keys);
+  player.update(dt, keys, activePerks.moveSpeedMult());
   const playable = ballIsPlayable();
   cpu.update(dt, ball, playable);
   if (variant === 'doubles') {
@@ -806,6 +910,12 @@ function updateRally(dt) {
     px: player.x, py: player.y, cx: cpu.x, cy: cpu.y,
     p2x: partner.x, p2y: partner.y, o2x: opp2.x, o2y: opp2.y,
   });
+
+  if (result && result.reason === 'Service fault!'
+      && rally.server === PLAYER && activePerks.takeServeLet()) {
+    startServe();
+    return;
+  }
 
   if (result) {
     if (netRebound) result.reason = 'Netted!';
@@ -952,7 +1062,7 @@ function frame(now) {
       }
     } else {
       cpu.update(dt, ball);
-      player.update(dt, keys);
+      player.update(dt, keys, activePerks.moveSpeedMult());
       serveTimer -= dt;
       if (serveTimer <= 0) serve();
     }
@@ -963,11 +1073,15 @@ function frame(now) {
     if (swingWindow > 0) {
       swingWindow -= dt;
       if (swingWindow <= 0) {
-        // Swung and missed.
         swingWindow = 0;
-        swingCooldown = 0.3;
-        charge = 0;
-        sfx.whiff();
+        if (activePerks.takeWhiffGrace()) {
+          // Wall: the mistimed swing is forgiven — keep the charge, no lockout.
+          sfx.paddle(0.15);
+        } else {
+          swingCooldown = 0.3;
+          charge = 0;
+          sfx.whiff();
+        }
       }
     }
     updateRally(dt);
@@ -986,15 +1100,24 @@ function frame(now) {
       endRally(pendingResult);
     }
   } else if (state === 'point-banner') {
-    player.update(dt, keys);
+    player.update(dt, keys, activePerks.moveSpeedMult());
     bannerTimer -= dt;
     // Dismiss on any input once the banner has been up long enough to read.
     const skipped = bannerSkip && bannerTimer < BANNER_SECS - 0.35;
     if (bannerTimer <= 0 || skipped) {
       ui.hideBanner();
-      const winner = score.winner();
+      const winner = score.winner(matchTarget);
       if (!winner) {
         startServe();
+      } else if (mode === 'circuit') {
+        recordGame({ won: winner === PLAYER, shutout: winner === PLAYER && score.get(CPU) === 0, champion: false });
+        if (winner === PLAYER) {
+          afterCircuitMatchWon();
+        } else {
+          fail(run);
+          state = 'game-over';
+          endCircuitRun();
+        }
       } else if (bestOf3 && ++matchGames[winner] < 2) {
         // Game won, match still live: record it and play the next game.
         recordGame({ won: winner === PLAYER, shutout: score.get(other(winner)) === 0, champion: false });
@@ -1029,8 +1152,12 @@ function frame(now) {
 window.__pickleball = {
   ball, player, cpu,
   getState: () => state,
+  getMode: () => mode,
   getScore: () => score,
   getRally: () => rally,
+  setPerks: (ids) => { activePerks = new PerkSet(ids); },
+  getPerks: () => activePerks,
+  getCircuitRun: () => run,
 };
 
 applyCosmetics();

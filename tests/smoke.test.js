@@ -8,16 +8,28 @@ const dom = installDom();
 await import('../game.js');
 
 dom.startGame('medium');
-dom.keyDown('Space'); // hold Space so player serves fire immediately
+const { getState } = window.__pickleball;
 
 const reasons = new Set();
 let time = 0;
 const FRAME = 1000 / 60;
 let frames = 0;
+let serveFrames = 0;
+let spaceHeld = false;
 const MAX_FRAMES = 60 * 180;
 
 try {
   while (frames < MAX_FRAMES) {
+    // Charge-and-release serve (a motionless player still needs to serve):
+    // hold Space, then release after ~a third of a second. Also skips replays.
+    const st = getState();
+    if (st === 'serving' || st === 'replay') {
+      if (!spaceHeld) { dom.keyDown('Space'); spaceHeld = true; serveFrames = 0; }
+      else if (st === 'serving' && ++serveFrames > 20) { dom.keyUp('Space'); spaceHeld = false; }
+    } else if (spaceHeld) {
+      dom.keyUp('Space');
+      spaceHeld = false;
+    }
     time += FRAME;
     dom.step(time);
     frames++;

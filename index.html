@@ -21,6 +21,7 @@
           <button id="mode-quick" class="secondary">Quick Play</button>
           <button id="mode-doubles" class="secondary">Doubles</button>
           <button id="mode-skinny" class="secondary">Skinny Singles</button>
+          <button id="mode-circuit" class="secondary">The Circuit</button>
         </div>
         <div class="difficulty hidden" id="difficulty-row">
           <p id="difficulty-title"></p>
@@ -66,10 +67,43 @@
         </div>
       </div>
 
+      <div id="circuit-start" class="overlay hidden">
+        <h1>The Circuit</h1>
+        <p class="tagline">Climb 9 rungs. Draft perks. Bank Trophies.</p>
+        <div id="circuit-bracket"></div>
+        <div id="circuit-meta" class="tagline"></div>
+        <div class="modes">
+          <button id="circuit-play"></button>
+          <button id="circuit-shop" class="secondary">Pro Shop</button>
+          <button id="circuit-back" class="secondary">Menu</button>
+        </div>
+      </div>
+
+      <div id="pro-shop" class="overlay hidden">
+        <h1>Pro Shop</h1>
+        <p id="shop-balance" class="tagline"></p>
+        <div id="shop-list"></div>
+        <button id="shop-back" class="secondary">Back</button>
+      </div>
+
+      <div id="run-summary" class="overlay hidden">
+        <h1 id="run-summary-title"></h1>
+        <p id="run-summary-line" class="tagline"></p>
+        <div id="run-summary-detail"></div>
+        <button id="run-summary-continue">Continue</button>
+      </div>
+
       <div id="champion" class="overlay hidden">
         <h1>Champion!</h1>
         <p class="tagline">You climbed the whole ladder. The Wall crumbled.</p>
         <button id="champion-restart">Back to menu</button>
+      </div>
+
+      <div id="draft" class="overlay hidden">
+        <h1>Draft a perk</h1>
+        <p class="tagline">Pick one. It lasts the whole run.</p>
+        <div id="draft-cards"></div>
+        <div id="draft-owned" class="tagline"></div>
       </div>
 
       <div id="stats" class="overlay hidden">
