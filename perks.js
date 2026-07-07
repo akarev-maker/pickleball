@@ -3,6 +3,8 @@
 // points. An empty set returns neutral values, so perks are a no-op in
 // every other mode. Pure — no DOM, no game state.
 
+import { SMASH_HEIGHT } from './shots.js';
+
 export const PERKS = [
   { id: 'cannon', name: 'Cannon', rarity: 'common', cost: 0,
     desc: 'Drives and serves hit harder — but scatter more.' },
@@ -63,7 +65,7 @@ export class PerkSet {
 
   reachBonus() { return this.has('longreach') ? 0.6 : 0; }
 
-  smashHeight() { return this.has('smashbro') ? 4.2 : 5.5; }
+  smashHeight() { return this.has('smashbro') ? 4.2 : SMASH_HEIGHT; }
 
   smashBonus() { return this.has('smashbro') ? 0.15 : 0; }
 

@@ -9,7 +9,7 @@ import {
   COURT_W, COURT_L, NET_Y, KITCHEN_TOP, KITCHEN_BOTTOM, CENTER_X, NET_HEIGHT, MARGIN,
 } from './court.js';
 import { Ball } from './ball.js';
-import { SMASH_HEIGHT, serveParams, lobParams, smashParams } from './shots.js';
+import { serveParams, lobParams, smashParams } from './shots.js';
 import { PerkSet } from './perks.js';
 import { Player } from './player.js';
 import { Cpu } from './cpu.js';
@@ -329,6 +329,7 @@ function togglePause() {
         ui.hidePause();
         if (mode === 'tournament') startTournamentMatch();
         else if (mode === 'daily') startDaily();
+        else if (mode === 'circuit') startCircuitMatch();
         else startGame(lastDifficulty, lastOpts);
       },
       onQuit: () => {
@@ -912,7 +913,6 @@ function updateRally(dt) {
 
   if (result && result.reason === 'Service fault!'
       && rally.server === PLAYER && activePerks.takeServeLet()) {
-    ui.showBanner('Let — serve again', 1000, 'soft');
     startServe();
     return;
   }
@@ -1152,6 +1152,7 @@ function frame(now) {
 window.__pickleball = {
   ball, player, cpu,
   getState: () => state,
+  getMode: () => mode,
   getScore: () => score,
   getRally: () => rally,
   setPerks: (ids) => { activePerks = new PerkSet(ids); },
