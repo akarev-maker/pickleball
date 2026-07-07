@@ -116,13 +116,19 @@ function limb(ctx, x0, y0, a1, l1, a2, l2, width, color) {
   return { x: ex, y: ey };
 }
 
-export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = null) {
+export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = null, look = null) {
   const p = view.toPx(x, y);
   const sweep = swingCurve(swingT);
   const moving = !!(gait && gait.moving);
   const back = swingT > 0 && !!(gait && gait.back); // backhand stroke
   // Standing figures breathe; running ones bounce with their stride.
   const idleSway = gait ? Math.sin(gait.idle * 2.2) : 0;
+  // Per-character appearance (see ladder.js roster `look` docs).
+  const lk = {
+    h: 1, w: 1, hunch: 0, skin: SKIN, hair: 'cap', hairColor: '#5a4632',
+    headShape: 'round', glasses: false,
+    ...(look || {}),
+  };
 
   if (view.mode === '3d') {
     // Readability floor: far players never shrink into dots.
@@ -132,26 +138,27 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
       : idleSway * s * 0.05;
     const side = facing === -1 ? 1 : -1;
     const handDir = back ? -side : side;
+    const stoop = lk.hunch * s * 0.16; // shoulders/head sag forward-down
     // Shadow on the court
     ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
     ctx.beginPath();
-    ctx.ellipse(p.px, p.py, s * 0.75, s * 0.26, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.px, p.py, s * 0.75 * lk.w, s * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Legs: articulated thigh + shin. Running gets a real cycle (front
     // leg reaching, rear leg folded heel-up); standing is a soft-kneed
     // athletic crouch.
-    const hipY = p.py - s * 1.08 - bob;
+    const hipY = p.py - s * 1.08 * lk.h - bob;
     for (let i = 0; i < 2; i++) {
-      const hx0 = p.px + (i === 0 ? -0.2 : 0.2) * s;
+      const hx0 = p.px + (i === 0 ? -0.2 : 0.2) * s * lk.w;
       const stride = moving ? Math.sin(gait.walk + i * Math.PI) : 0;
       const thigh = moving ? stride * 0.55 : (i === 0 ? -0.1 : 0.1) + idleSway * 0.02;
       const knee = moving
         ? -0.15 - Math.max(0, -stride) * 1.0
         : -0.16;
       const foot = limb(
-        ctx, hx0, hipY, thigh, s * 0.52, knee, s * 0.5,
-        Math.max(2, s * 0.22), SKIN,
+        ctx, hx0, hipY, thigh, s * 0.52 * lk.h, knee, s * 0.5 * lk.h,
+        Math.max(2, s * 0.22 * lk.w), lk.skin,
       );
       ctx.fillStyle = SHOE;
       ctx.beginPath();
@@ -160,25 +167,25 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     }
 
     // Free arm: bent and ready in front, pumping on the run.
-    const shY = p.py - s * 1.95 - bob;
+    const shY = p.py - s * 1.95 * lk.h - bob + stoop;
     const freeSwing = moving ? Math.sin(gait.walk) * 0.6 : idleSway * 0.07;
     limb(
       ctx,
-      p.px - side * s * 0.42, shY,
+      p.px - side * s * 0.42 * lk.w, shY,
       -side * (0.78 + freeSwing), s * 0.42,
       -side * 1.3, s * 0.38,
-      Math.max(2, s * 0.19), SKIN,
+      Math.max(2, s * 0.19), lk.skin,
     );
 
     // Shorts, then the tapered jersey over them.
     ctx.fillStyle = shade(color, 0.55);
     ctx.beginPath();
-    ctx.ellipse(p.px, p.py - s * 1.08 - bob, s * 0.42, s * 0.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.px, p.py - s * 1.08 * lk.h - bob, s * 0.42 * lk.w, s * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
-    const hipW = s * 0.36;
-    const shW = s * 0.46;
-    const hipLine = p.py - s * 1.12 - bob;
-    const shLine = p.py - s * 2.02 - bob;
+    const hipW = s * 0.36 * lk.w;
+    const shW = s * 0.46 * lk.w;
+    const hipLine = p.py - s * 1.12 * lk.h - bob;
+    const shLine = p.py - s * 2.02 * lk.h - bob + stoop;
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(p.px - hipW, hipLine);
@@ -191,28 +198,94 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     ctx.lineWidth = Math.max(1.5, s * 0.07);
     ctx.stroke();
 
-    // Head: skin, cap dome, brim + face for figures looking at the camera.
-    const heady = p.py - s * 2.52 - bob;
-    ctx.fillStyle = SKIN;
-    ctx.beginPath();
-    ctx.arc(p.px, heady, s * 0.36, 0, Math.PI * 2);
-    ctx.fill();
+    // Head: shaped, haired, and (when facing the camera) with a face.
+    const heady = p.py - s * 2.52 * lk.h - bob + stoop * 1.6;
     ctx.strokeStyle = OUTLINE;
     ctx.lineWidth = Math.max(1.5, s * 0.06);
-    ctx.stroke();
-    ctx.fillStyle = shade(color, 0.72);
-    ctx.beginPath();
-    ctx.arc(p.px, heady - s * 0.06, s * 0.37, Math.PI, Math.PI * 2);
-    ctx.fill();
-    if (facing === 1) {
+    if (lk.headShape === 'square') {
+      // Blocky and unbothered (The Wall).
+      ctx.fillStyle = lk.skin;
+      ctx.fillRect(p.px - s * 0.38, heady - s * 0.36, s * 0.76, s * 0.72);
+      ctx.strokeRect(p.px - s * 0.38, heady - s * 0.36, s * 0.76, s * 0.72);
+      if (facing === 1) {
+        ctx.fillStyle = '#2b2420';
+        for (const ex of [-0.15, 0.15]) {
+          ctx.fillRect(p.px + ex * s - s * 0.045, heady - s * 0.02, s * 0.09, s * 0.09);
+        }
+      }
+    } else {
+      ctx.fillStyle = lk.skin;
       ctx.beginPath();
-      ctx.ellipse(p.px, heady - s * 0.03, s * 0.4, s * 0.09, 0, 0, Math.PI);
+      ctx.arc(p.px, heady, s * 0.36, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#2b2420';
-      for (const ex of [-0.13, 0.13]) {
+      ctx.stroke();
+      if (lk.hair === 'cap') {
+        ctx.fillStyle = shade(color, 0.72);
         ctx.beginPath();
-        ctx.arc(p.px + ex * s, heady + s * 0.08, s * 0.045, 0, Math.PI * 2);
+        ctx.arc(p.px, heady - s * 0.06, s * 0.37, Math.PI, Math.PI * 2);
         ctx.fill();
+        if (facing === 1) {
+          ctx.beginPath();
+          ctx.ellipse(p.px, heady - s * 0.03, s * 0.4, s * 0.09, 0, 0, Math.PI);
+          ctx.fill();
+        }
+      } else if (lk.hair === 'spiky') {
+        ctx.fillStyle = lk.hairColor;
+        for (let i = -2; i <= 2; i++) {
+          const sx = p.px + i * s * 0.14;
+          ctx.beginPath();
+          ctx.moveTo(sx - s * 0.08, heady - s * 0.28);
+          ctx.lineTo(sx, heady - s * 0.52 - Math.abs(i) * -0.04 * s);
+          ctx.lineTo(sx + s * 0.08, heady - s * 0.28);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else if (lk.hair === 'bald') {
+        // A shiny dome with gray side tufts.
+        ctx.fillStyle = '#cfd2cf';
+        for (const hxSide of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(p.px + hxSide * s * 0.31, heady + s * 0.08, s * 0.11, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (lk.hair === 'ponytail') {
+        ctx.fillStyle = lk.hairColor;
+        ctx.beginPath();
+        ctx.arc(p.px, heady - s * 0.05, s * 0.37, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(
+          p.px - s * 0.3, heady - s * 0.38, s * 0.1, s * 0.24, -0.6, 0, Math.PI * 2,
+        );
+        ctx.fill();
+      } else if (lk.hair === 'headband') {
+        ctx.fillStyle = lk.hairColor;
+        ctx.beginPath();
+        ctx.arc(p.px, heady - s * 0.07, s * 0.37, Math.PI, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.fillRect(p.px - s * 0.37, heady - s * 0.14, s * 0.74, s * 0.11);
+      }
+      if (facing === 1) {
+        ctx.fillStyle = '#2b2420';
+        for (const ex of [-0.13, 0.13]) {
+          ctx.beginPath();
+          ctx.arc(p.px + ex * s, heady + s * 0.08, s * 0.045, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (lk.glasses) {
+          ctx.strokeStyle = '#4a443c';
+          ctx.lineWidth = Math.max(1.2, s * 0.045);
+          for (const ex of [-0.13, 0.13]) {
+            ctx.beginPath();
+            ctx.arc(p.px + ex * s, heady + s * 0.08, s * 0.1, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.moveTo(p.px - s * 0.03, heady + s * 0.08);
+          ctx.lineTo(p.px + s * 0.03, heady + s * 0.08);
+          ctx.stroke();
+        }
       }
     }
 
@@ -224,13 +297,13 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
     const elbow = handDir * (-1.15 + Math.abs(sweep) * (sweep > 0 ? 0.95 : 0.35));
     const hand = limb(
       ctx,
-      p.px + side * s * 0.42, shY,
+      p.px + side * s * 0.42 * lk.w, shY,
       upper, s * 0.42,
       elbow, s * 0.4,
-      Math.max(2, s * 0.19), SKIN,
+      Math.max(2, s * 0.19), lk.skin,
     );
     // Grip, handle, and the blade in the equipped paddle color.
-    ctx.fillStyle = SKIN;
+    ctx.fillStyle = lk.skin;
     ctx.beginPath();
     ctx.arc(hand.x, hand.y, s * 0.11, 0, Math.PI * 2);
     ctx.fill();
@@ -279,7 +352,7 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   }
 
   // Shoulders pulse with the stride (and faintly with breath at rest).
-  const bodyR = scale * 0.8 * (moving
+  const bodyR = scale * 0.8 * lk.w * (moving
     ? 1 + Math.sin(gait.walk * 2) * 0.06
     : 1 + idleSway * 0.02);
   ctx.fillStyle = color;
@@ -289,15 +362,22 @@ export function drawFigure(ctx, view, x, y, color, facing, swingT = 0, gait = nu
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
   ctx.lineWidth = 2;
   ctx.stroke();
-  // Head and cap seen from above.
-  ctx.fillStyle = SKIN;
-  ctx.beginPath();
-  ctx.arc(p.px, p.py, scale * 0.45, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = shade(color, 0.72);
-  ctx.beginPath();
-  ctx.arc(p.px, p.py, scale * 0.34, 0, Math.PI * 2);
-  ctx.fill();
+  // Head and headgear seen from above.
+  const capColor = lk.hair === 'bald' ? shade(lk.skin, 0.92)
+    : (lk.hair === 'cap' ? shade(color, 0.72) : lk.hairColor);
+  if (lk.headShape === 'square') {
+    ctx.fillStyle = lk.skin;
+    ctx.fillRect(p.px - scale * 0.4, p.py - scale * 0.4, scale * 0.8, scale * 0.8);
+  } else {
+    ctx.fillStyle = lk.skin;
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, scale * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = capColor;
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, scale * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   // Paddle: winds up then sweeps across the body — mirrored on a backhand.
   // Between swings it sways with the stride (or drifts gently at rest).

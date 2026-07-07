@@ -260,8 +260,9 @@ function startGame(difficulty, opts = {}) {
   cpu.setDifficulty(difficulty);
   if (variant === 'doubles') {
     opp2.setDifficulty(difficulty);
-    // Your partner is competent but a step slower than you.
-    partner.setProfile({ ...cpu.difficulty, speed: cpu.difficulty.speed - 1 });
+    // Your partner is competent but a step slower than you — and keeps
+    // their own default look rather than cloning the opponent's.
+    partner.setProfile({ ...cpu.difficulty, speed: cpu.difficulty.speed - 1, look: null });
     opp2.reset();
     partner.reset();
   }

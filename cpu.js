@@ -162,11 +162,16 @@ export class Cpu {
   }
 
   draw(ctx, view) {
-    const color = this.side === 'bottom' ? '#8fd3a8' : '#ff8a5e';
+    // Roster opponents wear their profile color; the doubles partner
+    // keeps their own mint kit.
+    const color = this.side === 'bottom' ? '#8fd3a8' : (this.difficulty.color || '#ff8a5e');
     const gait = {
       walk: this.walk, idle: this.idle, moving: this.speedNow > 1, back: this.swingBack,
     };
-    drawFigure(ctx, view, this.x, this.y, color, this.side === 'top' ? 1 : -1, this.swingT, gait);
+    drawFigure(
+      ctx, view, this.x, this.y, color,
+      this.side === 'top' ? 1 : -1, this.swingT, gait, this.difficulty.look,
+    );
   }
 }
 

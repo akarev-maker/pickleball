@@ -4,6 +4,11 @@
 //   dinkiness  0..1  preference for the kitchen dink game
 //   aggression 0..1  flat/fast drive bias (compresses flight time)
 //   lobbiness  0..1  chance of deep, high lobs
+//
+// `look` shapes the on-court figure (see player.js drawFigure): h/w scale
+// the build, hunch stoops the shoulders, hair is one of cap | spiky |
+// bald | ponytail | headband, headShape 'square' blocks out the head,
+// glasses adds spectacles, skin/hairColor recolor. Omit for the default.
 
 export const ROSTER = [
   {
@@ -12,6 +17,7 @@ export const ROSTER = [
     winLine: 'Rick can\'t believe it either.',
     loseLine: '“Good game! I almost hit one!”',
     speed: 9, reaction: 0.5, aimError: 4.5, dinkiness: 0.1, aggression: 0.1, lobbiness: 0.15,
+    look: { hair: 'spiky', hairColor: '#7a4520', h: 0.92, w: 0.9 },
   },
   {
     id: 'gene', name: 'Grandpa Gene', color: '#d9c79e',
@@ -19,6 +25,7 @@ export const ROSTER = [
     winLine: '“Patience beats pace. Every time.”',
     loseLine: '“Not bad. Now help me find my glasses.”',
     speed: 9.5, reaction: 0.42, aimError: 2.2, dinkiness: 0.8, aggression: 0.05, lobbiness: 0.1,
+    look: { hair: 'bald', glasses: true, h: 0.88, hunch: 1, skin: '#e3c39a' },
   },
   {
     id: 'lisa', name: 'Lob Lisa', color: '#c8a2ff',
@@ -26,6 +33,7 @@ export const ROSTER = [
     winLine: '“Gravity is my doubles partner.”',
     loseLine: '“Fine. The sun was in MY eyes.”',
     speed: 11, reaction: 0.35, aimError: 3, dinkiness: 0.25, aggression: 0.1, lobbiness: 0.75,
+    look: { hair: 'ponytail', hairColor: '#4a2f1d', h: 1.12, w: 0.82 },
   },
   {
     id: 'bob', name: 'Banger Bob', color: '#ff6b6b',
@@ -33,6 +41,7 @@ export const ROSTER = [
     winLine: '“BOOM. That\'s the Bob special.”',
     loseLine: '“Whatever. Touch shots are still cheating.”',
     speed: 12, reaction: 0.3, aimError: 2.8, dinkiness: 0, aggression: 0.9, lobbiness: 0,
+    look: { hair: 'headband', hairColor: '#3a2a18', w: 1.3, skin: '#e0a075' },
   },
   {
     id: 'stella', name: 'Steady Stella', color: '#7fe0b0',
@@ -40,6 +49,7 @@ export const ROSTER = [
     winLine: '“Consistency is a superpower.”',
     loseLine: '“Well played. I\'ll be recalibrating.”',
     speed: 13, reaction: 0.25, aimError: 2.6, dinkiness: 0.4, aggression: 0.35, lobbiness: 0.15,
+    look: { hair: 'ponytail', hairColor: '#1e1a16', skin: '#a06a42', w: 0.95 },
   },
   {
     id: 'kate', name: 'Kitchen Kate', color: '#ffd166',
@@ -47,6 +57,7 @@ export const ROSTER = [
     winLine: '“Order up: one soft game, well done.”',
     loseLine: '“Hmph. Stay out of my kitchen.”',
     speed: 13.5, reaction: 0.2, aimError: 2.1, dinkiness: 0.8, aggression: 0.25, lobbiness: 0.1,
+    look: { hair: 'headband', hairColor: '#c7842e', h: 0.95, skin: '#edc79b' },
   },
   {
     id: 'mike', name: 'Marathon Mike', color: '#6bd5ff',
@@ -54,6 +65,7 @@ export const ROSTER = [
     winLine: '“You can\'t outlast the marathon.”',
     loseLine: '“Nice. Same time tomorrow? I\'ll jog there.”',
     speed: 15, reaction: 0.16, aimError: 2.2, dinkiness: 0.3, aggression: 0.3, lobbiness: 0.25,
+    look: { hair: 'cap', h: 1.15, w: 0.85, skin: '#8a5a34' },
   },
   {
     id: 'wall', name: 'The Wall', color: '#e8ecea',
@@ -61,6 +73,7 @@ export const ROSTER = [
     winLine: 'The Wall says nothing. The Wall never does.',
     loseLine: 'A single brick falls. Somewhere, thunder.',
     speed: 16, reaction: 0.1, aimError: 1.6, dinkiness: 0.5, aggression: 0.55, lobbiness: 0.1,
+    look: { headShape: 'square', h: 1.18, w: 1.4, skin: '#b9c0bd' },
   },
 ];
 
