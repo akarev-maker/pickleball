@@ -57,6 +57,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') { toggleView(); return; }
   if (e.code === 'Escape' || e.code === 'KeyP') { togglePause(); return; }
   if (state === 'replay') replaySkip = true;
+  if (state === 'point-banner') bannerSkip = true;
   keys.add(e.code);
 });
 window.addEventListener('keyup', (e) => {
@@ -78,7 +79,11 @@ canvas.addEventListener('mousemove', (e) => {
   aim.y = clamp(c.y, -MARGIN + 0.5, NET_Y - 1);
   aim.active = true;
 });
-canvas.addEventListener('mousedown', () => { initAudio(); mouseHeld = true; });
+canvas.addEventListener('mousedown', () => {
+  initAudio();
+  mouseHeld = true;
+  if (state === 'point-banner') bannerSkip = true;
+});
 window.addEventListener('mouseup', () => {
   // Only a release of a charge started on the canvas is a swing — clicking
   // UI buttons mid-rally must not cause phantom whiffs.
@@ -143,6 +148,7 @@ function enableTouch() {
 window.addEventListener('touchstart', () => {
   enableTouch();
   if (state === 'replay') replaySkip = true;
+  if (state === 'point-banner') bannerSkip = true;
 }, { passive: true });
 
 const ball = new Ball();
@@ -177,6 +183,7 @@ let serveTimer = 0;
 let serveCharging = false;
 let demoAutoServe = false; // #demo dev mode: serve without input
 let bannerTimer = 0;
+let bannerSkip = false; // an input dismisses the point banner early
 let prevBallX = 0;
 let prevBallY = 0;
 let prevBallZ = 0;
@@ -489,6 +496,7 @@ function endRally({ winner, reason }) {
   const who = winner === PLAYER ? 'Point: YOU' : `Point: ${opponentName()}`;
   ui.showBanner(`${reason}  ${who}`, 0);
   bannerTimer = BANNER_SECS;
+  bannerSkip = false; // require a fresh input to dismiss early
   state = 'point-banner';
 }
 
@@ -980,7 +988,9 @@ function frame(now) {
   } else if (state === 'point-banner') {
     player.update(dt, keys);
     bannerTimer -= dt;
-    if (bannerTimer <= 0) {
+    // Dismiss on any input once the banner has been up long enough to read.
+    const skipped = bannerSkip && bannerTimer < BANNER_SECS - 0.35;
+    if (bannerTimer <= 0 || skipped) {
       ui.hideBanner();
       const winner = score.winner();
       if (!winner) {
