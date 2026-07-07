@@ -4,6 +4,14 @@
 // branch keeps re-detecting the same winner every frame and re-banks Trophies
 // (and re-records the game) on every animation frame until Continue is clicked.
 //
+// The bot's actual play against the CPU is not deterministic, so we don't
+// rely on it to win the match: once a Circuit match is underway we force
+// getCircuitRun().rung = 9 (so the win counts as a boss clear) AND force
+// getScore().player = 99 (via the window.__pickleball score seam) so that
+// score.winner(matchTarget) returns PLAYER the instant the next rally ends,
+// no matter who actually wins that rally. The bot still plays (serves, and
+// swings when the ball is reachable) purely to make a rally happen and end.
+//
 // Run separately: node tests/circuit-boss.test.js (not part of npm test).
 import { installDom } from './dom-stub.js';
 import { COURT_W, COURT_L, NET_Y, KITCHEN_BOTTOM, CENTER_X } from '../rules.js';
@@ -12,7 +20,7 @@ import { loadCircuit } from '../progress.js';
 const dom = installDom();
 await import('../game.js');
 const pk = window.__pickleball;
-const { ball, player, getState, getCircuitRun, getRally } = pk;
+const { ball, player, getState, getCircuitRun, getRally, getScore } = pk;
 
 const before = loadCircuit().trophies;
 
@@ -39,6 +47,15 @@ while (frames < 60 * 300) {
   // (the easy rung-1 opponent) — only what advance() does at win-time changes.
   const run = getCircuitRun();
   if (run && run.rung !== 9) run.rung = 9;
+  // Once startCircuitMatch() has assigned a fresh score (state is 'serving'
+  // or 'rally'), force the player's score so the very next rally to end
+  // triggers score.winner(matchTarget) === PLAYER deterministically. Don't
+  // touch it any earlier — before the match starts `getScore()` may still
+  // hold a stale pre-match Score object.
+  const st0 = getState();
+  if (run && (st0 === 'serving' || st0 === 'rally')) {
+    getScore().player = 99;
+  }
 
   let tx = CENTER_X; let ty = COURT_L - 6;
   if (ball.inFlight && ball.vy > 0) {
